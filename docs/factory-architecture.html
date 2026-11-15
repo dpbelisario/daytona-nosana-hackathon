@@ -1,0 +1,137 @@
+<title>Belli Demo Factory</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one request path drawn left→right as lanes (browser → Vercel → Daytona), Nosana as the lit-up GPU lane under it, supporting services along the bottom. */
+:root {
+  --bg: #f5f6f8; --panel: #ffffff; --ink: #121722; --muted: #5b6474; --line: #d5dae3;
+  --belli: #ff5a1f; --nosana: #10b40c; --nosana-soft: #e6f9e5; --nosana-ink: #0b6e08;
+  --daytona: #3c5be0; --daytona-soft: #eaeefd; --vercel: #121722; --clerk: #6c47ff; --clerk-soft: #efeaff;
+  --display: "Space Grotesk", system-ui, sans-serif; --body: "Inter", system-ui, sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0d1016; --panel: #151a23; --ink: #e8ebf1; --muted: #98a2b3; --line: #2a3140;
+  --nosana: #2ee62a; --nosana-soft: #0f2a12; --nosana-ink: #7cf27a; --daytona: #8aa0ff; --daytona-soft: #1a2142;
+  --vercel: #e8ebf1; --clerk: #a68bff; --clerk-soft: #231b42; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0d1016; --panel: #151a23; --ink: #e8ebf1; --muted: #98a2b3; --line: #2a3140;
+  --nosana: #2ee62a; --nosana-soft: #0f2a12; --nosana-ink: #7cf27a; --daytona: #8aa0ff; --daytona-soft: #1a2142;
+  --vercel: #e8ebf1; --clerk: #a68bff; --clerk-soft: #231b42; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 24px 40px }
+main { max-width: 1180px; margin: 0 auto; display: grid; gap: 18px }
+h1 { font: 700 clamp(1.5rem, 3vw, 2rem)/1.15 var(--display); margin: 0; text-wrap: balance }
+h1 b { color: var(--belli) }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 70ch }
+.lanes { display: grid; grid-template-columns: 0.8fr 1.3fr 2fr; gap: 14px; align-items: stretch }
+@media (max-width: 900px) { .lanes { grid-template-columns: 1fr } }
+.lane { background: var(--panel); border: 1.5px solid var(--line); border-radius: 10px; padding: 14px; display: grid; gap: 10px; align-content: start; min-width: 0 }
+.lane > header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap }
+.lane h2 { font: 600 1.05rem var(--display); margin: 0 }
+.tag { font: 500 11px var(--mono); color: var(--muted); letter-spacing: .04em; text-transform: uppercase }
+.box { border: 1px solid var(--line); border-radius: 7px; padding: 9px 10px; display: grid; gap: 6px; min-width: 0 }
+.box b { font-weight: 600 }
+.box p { margin: 0; color: var(--muted); font-size: 13px }
+.chips { display: flex; flex-wrap: wrap; gap: 5px }
+.chip { font: 500 11.5px var(--mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; white-space: nowrap }
+.vercel { border-top: 4px solid var(--vercel) }
+.daytona { border-top: 4px solid var(--daytona) }
+.daytona .inner { background: var(--daytona-soft); border-color: color-mix(in srgb, var(--daytona) 40%, var(--line)) }
+.ports { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px }
+@media (max-width: 520px) { .ports { grid-template-columns: 1fr } }
+.port { font: 500 12px var(--mono); text-align: center; border: 1px dashed var(--daytona); border-radius: 5px; padding: 5px 4px; color: var(--daytona) }
+.stack { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+@media (max-width: 520px) { .stack { grid-template-columns: 1fr } }
+.nosana { border: 2.5px solid var(--nosana); background: linear-gradient(135deg, var(--nosana-soft), var(--panel) 70%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--nosana) 18%, transparent), 0 10px 30px color-mix(in srgb, var(--nosana) 22%, transparent) }
+.nosana h2 { color: var(--nosana-ink); font-size: 1.25rem }
+.nosana .model { font: 700 1.6rem var(--display); color: var(--nosana-ink); letter-spacing: -.01em }
+.nosana .chip { border-color: color-mix(in srgb, var(--nosana) 55%, var(--line)); color: var(--nosana-ink) }
+.wide { grid-column: 2 / -1 }
+@media (max-width: 900px) { .wide { grid-column: auto } }
+.nosana-grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 12px; align-items: center }
+@media (max-width: 700px) { .nosana-grid { grid-template-columns: 1fr } }
+.clerk { border-color: var(--clerk); background: var(--clerk-soft) }
+.clerk b { color: var(--clerk) }
+.services { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px }
+.flow { margin: 0; padding: 0; list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; counter-reset: s }
+.flow li { counter-increment: s; background: var(--panel); border: 1px solid var(--line); border-radius: 7px; padding: 8px 10px; font-size: 13px; min-width: 0 }
+.flow li::before { content: counter(s); font: 700 12px var(--mono); color: var(--belli); margin-right: 6px }
+.flow li.n { border-color: var(--nosana) }
+.legend { font-size: 12px; color: var(--muted) }
+</style>
+
+<main>
+  <header>
+    <span class="tag">Hackathon · Daytona × Nosana</span>
+    <h1><b>Belli</b> Demo Factory</h1>
+    <p class="sub">An airline clicks Demo on belli.ai, enters an email and its airline, and gets its own Belli: an internal dashboard and a booking portal with its network, fleet and shipments.</p>
+  </header>
+
+  <div class="lanes">
+    <section class="lane">
+      <header><h2>Prospect</h2><span class="tag">browser</span></header>
+      <div class="box"><b>belli.ai homepage</b><p>Click Demo, enter work email + airline.</p></div>
+      <div class="box"><b>Their demo</b><p>Dashboard + booking portal, no login.</p>
+        <div class="chips"><span class="chip">&lt;slug&gt;.belli.ai</span><span class="chip">&lt;slug&gt;-booking.belli.ai</span></div></div>
+    </section>
+
+    <section class="lane vercel">
+      <header><h2>Vercel</h2><span class="tag">belli-demo-factory</span></header>
+      <div class="box"><b>Next.js 15 · React 19 · TypeScript</b>
+        <p>Landing page (proxied belli.ai), demo form, status page.</p></div>
+      <div class="box"><b>/api/demo</b><p>Finds the airline's sandbox by label or creates one from the snapshot. Uploads profile, brand, logo.</p></div>
+      <div class="box"><b>Airline profile generator</b><p>Public data: IATA codes, AWB prefix, airports, hub, fleet types. Fake agents, rates, AWBs.</p>
+        <div class="chips"><span class="chip">IATA reference data</span><span class="chip">FlightAware AeroAPI</span></div></div>
+      <div class="box"><b>Middleware + Vercel DNS</b><p><code>*.belli.ai</code> → that airline's sandbox.</p></div>
+    </section>
+
+    <section class="lane daytona">
+      <header><h2>Daytona</h2><span class="tag">one sandbox per airline</span></header>
+      <div class="box inner"><b>Snapshot <code>belli-demo-stack-v1</code></b><p>Built once from GitHub <code>belli-ai/belli-api</code> + <code>belli-ai/belli</code>. Every demo starts from it.</p></div>
+      <div class="ports"><span class="port">:3000 dashboard</span><span class="port">:4000 portal</span><span class="port">/belli-api</span></div>
+      <div class="box"><b>edge.mjs</b><p>Node front door: routes dashboard vs portal, proxies the API, shows progress.</p></div>
+      <div class="stack">
+        <div class="box"><b>Belli frontend</b><p>No-login demo mode.</p>
+          <div class="chips"><span class="chip">Next.js 16</span><span class="chip">React 19</span><span class="chip">Tailwind</span><span class="chip">shadcn/ui</span></div></div>
+        <div class="box"><b>belli-api</b><p>Real backend, seeded per airline.</p>
+          <div class="chips"><span class="chip">Go</span><span class="chip">Echo</span><span class="chip">GORM</span></div></div>
+        <div class="box"><b>PostgreSQL 16</b><p>Atlas migrations, airline data.</p></div>
+        <div class="box"><b>Redis</b><p>Cache and queues.</p></div>
+      </div>
+      <div class="box clerk"><b>Clerk</b><p>Production login, orgs and roles for real Belli tenants. Demos swap it for stand-ins plus a bypass token, so prospects never sign in.</p></div>
+    </section>
+
+    <section class="lane nosana wide">
+      <header><h2>Nosana · decentralized GPU</h2><span class="tag">RTX 3060 · pay per hour · Solana</span></header>
+      <div class="nosana-grid">
+        <div style="display:grid;gap:6px">
+          <span class="model">Ollama · qwen3:8b</span>
+          <p style="margin:0">Runs the heavy model work: for each new airline it proposes the hub, real destinations, fleet families, brand colour and fictional forwarders. The factory validates every code against IATA reference data before seeding.</p>
+        </div>
+        <div class="chips"><span class="chip">OpenAI-compatible /v1/chat/completions</span><span class="chip">Docker container on a GPU host</span><span class="chip">credits</span><span class="chip">fallback if offline</span></div>
+      </div>
+    </section>
+  </div>
+
+  <section>
+    <span class="tag">One demo, step by step</span>
+    <ol class="flow">
+      <li>Prospect submits email + airline on the Vercel page.</li>
+      <li class="n">Generator asks Nosana (qwen3:8b) for network, fleet, colour; checks it against IATA data.</li>
+      <li>Daytona sandbox starts from the snapshot (reused if the airline already has one).</li>
+      <li>belli-api migrates and seeds: flights, aircraft, ULDs, AWBs with the real prefix.</li>
+      <li>Airline name, colour and logo go into the frontend; services start.</li>
+      <li>Prospect opens the dashboard and booking portal.</li>
+    </ol>
+  </section>
+
+  <section class="services">
+    <div class="box"><b>GitHub</b><p>belli-api, belli, factory code; agents coordinate on issue #1.</p></div>
+    <div class="box"><b>FlightAware AeroAPI</b><p>Real published flights when a key is set.</p></div>
+    <div class="box"><b>Resend</b><p>Emails the demo link (optional).</p></div>
+    <div class="box"><b>PostHog</b><p>Product analytics in the Belli frontend.</p></div>
+  </section>
+  <p class="legend">Real public facts: airline name, codes, AWB prefix, hub, routes, aircraft types, logo. Fake: agents, customers, shipments, AWB serials.</p>
+</main>
