@@ -31,7 +31,7 @@ async function publicHost(sandbox: Sandbox, port: number): Promise<string> {
 
 async function main() {
   const query = process.argv.slice(2).join(" ") || "Etihad"
-  const daytona = new Daytona()
+  const daytona = new Daytona(process.env.DAYTONA_API_KEY ? undefined : { apiKey: "via-network-secret" })
 
   console.log(`Generating profile for "${query}"…`)
   const g = await generateProfile(query)
@@ -63,8 +63,13 @@ async function main() {
     )
     if (resources) await sandbox.resize(resources).catch((e) => console.warn(`resize skipped: ${e.message}`))
 
+  }
+
+  // Upload the airline files unless this sandbox was already seeded.
+  const seeded = await sandbox.process.executeCommand("test -f /home/daytona/demo/.seeded && echo yes || echo no")
+  if (!seeded.result.includes("yes")) {
     const dashboard = await publicHost(sandbox, 3000)
-    const portal = await publicHost(sandbox, 3001)
+    const portal = await publicHost(sandbox, 4000)
     const files: [string, Buffer][] = [
       ["profile.json", Buffer.from(JSON.stringify(g.profile))],
       ["brand.json", Buffer.from(JSON.stringify({ displayName: g.brand.displayName, primaryColorHex: g.brand.primaryColorHex, iata: g.brand.iata }))],
@@ -74,6 +79,7 @@ async function main() {
     if (logo) files.push(["logo.png", logo])
     for (const [name, data] of files) await sandbox.fs.uploadFile(data, `/home/daytona/demo/${name}`)
     console.log(`  uploaded ${files.map((f) => f[0]).join(", ")}${logo ? "" : " (no logo found; monogram will be used)"}`)
+
   }
 
   await uploadRuntime(sandbox)
@@ -82,7 +88,7 @@ async function main() {
   await sandbox.process.executeSessionCommand("boot", { command: "bash /home/daytona/demo/bootstrap.sh", runAsync: true })
 
   const dashboardUrl = (await sandbox.getPreviewLink(3000)).url
-  const portalUrl = (await sandbox.getPreviewLink(3001)).url
+  const portalUrl = (await sandbox.getPreviewLink(4000)).url
   console.log(`\nDashboard:      ${dashboardUrl}`)
   console.log(`Booking portal: ${portalUrl}`)
   console.log(`Progress:       ${dashboardUrl.replace(/\/$/, "")}/__demo/status\n`)

@@ -32,8 +32,20 @@ set -a; source "$D/api.env"; set +a
 if [ ! -f "$D/.seeded" ]; then
   [ -f "$D/profile.json" ] || fail "profile.json missing"
   status seeding "schema"
-  atlas migrate apply --dir "file://$API/db/migrations" --revisions-schema public \
-    --url "postgres://$DB_USER:$DB_PASSWORD@127.0.0.1:$DB_PORT/$DB_NAME?sslmode=disable" || fail "migrations"
+  # The baseline was dumped from Postgres 17; the sandbox runs 16, which has no
+  # transaction_timeout. Drop that SET and re-hash so Atlas accepts the dir.
+  if grep -lq "^SET transaction_timeout" "$API"/db/migrations/*.sql; then
+    sed -i '/^SET transaction_timeout/d' "$API"/db/migrations/*.sql
+    atlas migrate hash --dir "file://$API/db/migrations" || fail "migrate hash"
+  fi
+  # The pg_dump baseline empties search_path for its connection, so the next
+  # file fails on the same connection; a new run (new connection) continues.
+  migrated=""
+  for _ in 1 2 3; do
+    atlas migrate apply --dir "file://$API/db/migrations" --revisions-schema public \
+      --url "postgres://$DB_USER:$DB_PASSWORD@127.0.0.1:$DB_PORT/$DB_NAME?sslmode=disable" && { migrated=1; break; }
+  done
+  [ -n "$migrated" ] || fail "migrations"
   cd "$API" || fail "api dir"
   status seeding "reference data"; ./api seed:default || fail "seed:default"
   status seeding "organisation";   ./api seed:org-bootstrap --org "$BYPASS_ORG_ID" || fail "seed:org-bootstrap"
