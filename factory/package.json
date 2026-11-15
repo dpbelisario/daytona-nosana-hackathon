@@ -8,7 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit",
     "profile": "tsx scripts/generate-profile.ts",
-    "snapshot": "tsx scripts/build-snapshot.ts"
+    "snapshot": "tsx scripts/build-snapshot.ts",
+    "try": "tsx scripts/try-demo.ts"
   },
   "dependencies": {
     "@daytona/sdk": "0.231.1",
