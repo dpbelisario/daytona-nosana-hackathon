@@ -16,10 +16,19 @@ const clean = (s) => String(s ?? "").replace(/["'`\\<>{}$]/g, "").trim()
 const name = clean(brand.displayName)
 
 const rules = [] // [needle, replacement, skipIfPresent]
-for (const [internal, pub] of [["dashboard.belli-demo.internal", clean(hosts.dashboard)], ["portal.belli-demo.internal", clean(hosts.portal)]]) {
+// Raw preview hosts: register the portal on both :3001 and :4000 (edge serves both).
+const siblings = (h, ports) => { const m = /^\d+-(.+)$/.exec(h || ""); return m ? ports.map((p) => `${p}-${m[1]}`) : [h] }
+const pairs = [
+  ...siblings(clean(hosts.dashboard), ["3000"]).map((h) => ["dashboard.belli-demo.internal", h]),
+  ...siblings(clean(hosts.portal), ["3001", "4000"]).map((h) => ["portal.belli-demo.internal", h]),
+]
+const esc = (t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+const listRules = [] // [regex, host, plainPresent, escapedPresent]
+for (const [internal, pub] of pairs) {
   if (!pub) continue
-  rules.push([`${internal}"]`, `${internal}","${pub}"]`, `"${pub}"`])
-  rules.push([`${internal}\\"]`, `${internal}\\",\\"${pub}\\"]`, `\\"${pub}\\"`])
+  // Append to the end of the inlined list, e.g. ["portal.belli-demo.internal","h1"] → […,"h2"].
+  listRules.push([new RegExp(`(${esc(internal)}"(?:,"[^"\\]]*")*)\\]`, "g"), `$1,"${pub}"]`, `"${pub}"`])
+  listRules.push([new RegExp(`(${esc(internal)}\\\\"(?:,\\\\"[^"\\\\\\]]*\\\\")*)\\]`, "g"), `$1,\\"${pub}\\"]`, `\\"${pub}\\"`])
 }
 rules.push(['"/logos/belli-logo.png"', '"/belli-demo-logo.svg"', null])
 if (name) rules.push(["Demo User", name, null])
@@ -35,6 +44,9 @@ function walk(dir) {
     else if (TEXT.test(entry) && st.size < 50_000_000) {
       const before = readFileSync(p, "utf8")
       let after = before
+      for (const [re, repl, present] of listRules) {
+        if (!after.includes(present)) after = after.replace(re, repl)
+      }
       for (const [needle, repl, present] of rules) {
         if (present && after.includes(present)) continue
         after = after.split(needle).join(repl)

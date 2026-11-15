@@ -69,7 +69,7 @@ async function main() {
   const seeded = await sandbox.process.executeCommand("test -f /home/daytona/demo/.seeded && echo yes || echo no")
   if (!seeded.result.includes("yes")) {
     const dashboard = await publicHost(sandbox, 3000)
-    const portal = await publicHost(sandbox, 4000)
+    const portal = await publicHost(sandbox, 3001)
     const files: [string, Buffer][] = [
       ["profile.json", Buffer.from(JSON.stringify(g.profile))],
       ["brand.json", Buffer.from(JSON.stringify({ displayName: g.brand.displayName, primaryColorHex: g.brand.primaryColorHex, iata: g.brand.iata }))],
@@ -88,7 +88,7 @@ async function main() {
   await sandbox.process.executeSessionCommand("boot", { command: "bash /home/daytona/demo/bootstrap.sh", runAsync: true })
 
   const dashboardUrl = (await sandbox.getPreviewLink(3000)).url
-  const portalUrl = (await sandbox.getPreviewLink(4000)).url
+  const portalUrl = (await sandbox.getPreviewLink(3001)).url
   console.log(`\nDashboard:      ${dashboardUrl}`)
   console.log(`Booking portal: ${portalUrl}`)
   console.log(`Progress:       ${dashboardUrl.replace(/\/$/, "")}/__demo/status\n`)

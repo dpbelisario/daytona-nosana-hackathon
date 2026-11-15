@@ -80,17 +80,10 @@ const handler = (portContext) => (req, res) => {
   if (status.state !== "ready") return preparing(res, status)
 
   if (url === "/belli-api" || url.startsWith("/belli-api/")) {
-    const origin = String(req.headers.origin || "")
-    const cors = allowedOrigins().has(origin)
-      ? {
-          "access-control-allow-origin": origin,
-          "access-control-allow-credentials": "true",
-          "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-          "access-control-allow-headers": String(req.headers["access-control-request-headers"] || "*"),
-          "access-control-max-age": "600",
-          vary: "Origin",
-        }
-      : {}
+    // Daytona's preview proxy already answers preflights and adds CORS headers
+    // for the requesting origin; adding ours too sends the header twice and the
+    // browser rejects it. So strip the API's CORS headers and add none.
+    const cors = {}
     if (req.method === "OPTIONS") {
       res.writeHead(204, cors)
       res.end()
