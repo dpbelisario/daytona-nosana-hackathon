@@ -11,7 +11,7 @@ Sources: Belli's wiki `belli-ai/cargo-knowledge` (each claim below names the pag
 
 ---
 
-## 1. Recommended hackathon architecture (build this)
+## 1. First plan: lightweight demo app (SUPERSEDED by §6, which is the real Belli stack per airline)
 
 ```
 belli.ai "Demo" button
@@ -142,3 +142,83 @@ Rules:
   Env: `VERCEL_TOKEN` (team-scoped), `VERCEL_TEAM_ID`, `VERCEL_ROUTER_PROJECT_ID`.
 - **Alternative with no per-demo API calls:** add `*.demo.belli.ai` once to the router project.
   Demos are then `etihad.demo.belli.ai`.
+
+---
+
+## 6. THE PLAN: one real Belli demo per airline (replaces `release/demo-<airline>` branches)
+
+The owner wants this: what `release/demo-etihad` is today, but with **no new branch and no new
+deploy**, created when an airline signs in. **One code version for everyone; the airline is only
+data.** If a demo for that airline already exists, reuse it.
+
+```
+<airline>.belli.ai  or  demo gate form (email + airline)
+        │
+        ▼
+Vercel project "demo-router"  (thin; no heavy work)
+  ├─ /            gate form → POST /api/demo
+  ├─ /api/demo    1. daytona.list({labels:{kind:'belli-demo', airline:'EY'}})
+  │                  found → start() if stopped/archived → return URL          (reuse)
+  │                  none  → create({snapshot:'belli-demo-stack-vN', public:true,
+  │                                   labels:{kind,airline,subdomain}, autoStopInterval:30})
+  │                          → run bootstrap.sh in a background session → return "building"
+  │               2. attach <airline>.belli.ai to the router project (Vercel API, §5)
+  │               3. log the lead (email, airline, sandbox id), email the link (Resend)
+  ├─ /api/status  reads /home/daytona/status.json from the sandbox → the page polls it
+  └─ middleware   <sub>.belli.ai → find the sandbox by label → rewrite to 3000-<id>.<daytona-proxy>
+        │
+        ▼
+Daytona sandbox per airline  (from ONE prebuilt snapshot of release/demo-etihad)
+  bootstrap.sh:
+   1. profile = cached profiles/<IATA>.json, else ask Nosana to generate it (validate with schema)
+   2. start Postgres + Redis (installed in the snapshot, not Docker)
+   3. belli-api migrate → seed-demo --profile profile.json   (org, org_airlines, stations,
+      aircraft/fleet, recurring flights, rate plans, agents, AWB stock with the real prefix, sample AWBs)
+   4. start belli-api :8080 and belli FE (demo mode, already built) :3000
+   5. write status.json = ready
+        │
+        ▼
+Nosana GPU (Ollama, OpenAI-compatible): the heavy model work only
+  - generate the airline profile + dataset JSON (fleet, routes, schedules, agents, rates, commodity mix)
+  - pre-generate profiles for the ICP list (~450 small airlines) in a batch, so sign-in normally
+    never waits for the GPU
+```
+
+### Code changes needed (on ONE demo branch, for example `release/demo`, then frozen in the snapshot)
+
+1. **belli-api `seed-demo --profile <json>`.** Change the `pkg/demo/*` seeders from hardcoded
+   Etihad/United constants to read a profile JSON. That one change replaces "a branch per airline".
+2. **belli FE: runtime config instead of build-time config.** `NEXT_PUBLIC_*` values are frozen
+   at build time, and the snapshot is built once. Demo mode must therefore:
+   - accept any host (`NEXT_PUBLIC_ALLOWED_HOSTS` is exact-match only today → add a demo-mode
+     bypass),
+   - call the API same-origin (`/api/...` rewritten to `localhost:8080` inside the sandbox) instead
+     of a build-time `NEXT_PUBLIC_API_URL`,
+   - read brand / airline name from the API (org settings) at runtime, not from
+     `NEXT_PUBLIC_TENANT_BRAND`.
+   `STRICT_ORG_ID` (server, runtime) and the API's `BYPASS_ORG_ID` = the same fake `org_demo_<iata>`.
+3. Copy all other env from the existing demo (Vercel demo project + Hetzner `apps/core/demo/.env`
+   in Infisical), because demo.getbelli.ai already works in bypass mode.
+4. Check what belli-api needs at boot (Postgres, Redis; ClickHouse/NATS only if flags turn them on;
+   `DB_REPORT_READ_HOST` → the same local Postgres). Turn off what the demo does not need.
+
+### Build the snapshot once
+
+Use a sandbox with large resources (needs `image`, for example `ubuntu:22.04`, ≥ 4 vCPU / 8 GB / 20 GB):
+install Postgres + Redis + Go binary + Node. Clone `release/demo`, build the API binary and `next
+build` the FE, add `bootstrap.sh`, then `sandbox.createSnapshot('belli-demo-stack-v1')`. A new code
+version = a new snapshot (`-v2`). Old demos keep running on their version.
+
+### Why a sandbox per airline is good here
+
+Each airline has its **own database with only fake data**. The bypass token in the browser
+therefore cannot reach anyone else's data, which was the risk of a shared demo backend.
+
+### Risks to check first (in this order)
+
+1. Does `release/demo` FE + API run in one sandbox at ≥ 2 vCPU / 4 GB? (Measure: cold
+   bootstrap time and RAM.)
+2. Daytona org quota: the total vCPU/RAM across all running sandboxes. Use `autoStopInterval: 30` and
+   restart on visit (the router calls `start()` when a sandbox is stopped and shows "waking up").
+3. The FE runtime-config patch (item 2) is the largest code change. The fallback is to run `next build` inside the
+   sandbox at create time with the correct env (+3 to 5 minutes for the first visit only).
