@@ -54,7 +54,10 @@ export async function POST(req: Request) {
     await inFlight.get(slug)
   } catch (error) {
     console.error("demo create failed", slug, error)
-    return Response.json({ error: `Could not create the demo: ${(error as Error).message}` }, { status: 500 })
+    // No sandbox capacity/snapshot yet: queue the request and show the
+    // recorded walkthrough instead of an error.
+    await recordLead(email, airline.name, slug, statusUrl)
+    return Response.json({ slug, queued: true, statusUrl: `${statusUrl}?queued=1` })
   }
   await recordLead(email, airline.name, slug, statusUrl)
   return Response.json({ slug, reused: false, statusUrl })
