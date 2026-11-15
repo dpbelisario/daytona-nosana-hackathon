@@ -1,0 +1,335 @@
+<title>Daytona and Nosana Architecture</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: maintenance-manual page (STE100 voice). Figures first, text second. Two platform columns that stack on phones. */
+:root {
+  --bg: #f4f6f9;
+  --sheet: #ffffff;
+  --ink: #141a24;
+  --muted: #5a6577;
+  --line: #c9d1dd;
+  --day: #3557d6;        /* Daytona */
+  --day-soft: #e8edfd;
+  --nos: #13853a;        /* Nosana */
+  --nos-soft: #e3f5e8;
+  --you: #8a5a00;        /* your laptop */
+  --you-soft: #fbf1dc;
+  --warn: #a8461c;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0e1218; --sheet: #151b24; --ink: #e6eaf1; --muted: #93a0b4; --line: #2c3645;
+    --day: #8ea4ff; --day-soft: #1b2342; --nos: #4fd17a; --nos-soft: #12291b;
+    --you: #f0b955; --you-soft: #2b2212; --warn: #ff9a6b; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0e1218; --sheet: #151b24; --ink: #e6eaf1; --muted: #93a0b4; --line: #2c3645;
+  --day: #8ea4ff; --day-soft: #1b2342; --nos: #4fd17a; --nos-soft: #12291b;
+  --you: #f0b955; --you-soft: #2b2212; --warn: #ff9a6b; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font: 15px/1.55 var(--font-body);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 56px;
+}
+main { max-width: 1080px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.2; }
+h1 { font-size: clamp(1.6rem, 3.4vw, 2.2rem); font-weight: 700; letter-spacing: -0.01em; }
+h2 { font-size: 1.15rem; font-weight: 600; }
+h3 { font-size: 0.95rem; font-weight: 600; }
+p { margin: 0; max-width: 68ch; }
+code, .mono { font-family: var(--font-mono); font-size: 0.86em; }
+.label { font: 600 11px/1.2 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+.masthead { display: grid; gap: 10px; border-bottom: 2px solid var(--ink); padding-bottom: 16px; }
+.masthead .meta { display: flex; flex-wrap: wrap; gap: 6px 20px; }
+.answer { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+.answer div { background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; display: grid; gap: 4px; }
+.answer b { font-size: 1rem; }
+.answer .d b { color: var(--day); } .answer .n b { color: var(--nos); }
+
+.figure { background: var(--sheet); border: 1px solid var(--line); border-radius: 8px; padding: 18px; display: grid; gap: 14px; }
+.figure > header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 6px 16px; align-items: baseline; }
+.caption { color: var(--muted); font-size: 13.5px; }
+
+/* Figure 1 — nested boxes */
+.box { border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 8px; min-width: 0; }
+.box > .t { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 10px; align-items: baseline; }
+.box .s { color: var(--muted); font-size: 13px; }
+.you { border-color: var(--you); background: var(--you-soft); }
+.you .t h3 { color: var(--you); }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .cols { grid-template-columns: 1fr; } }
+.plat { border-width: 2px; padding: 12px; gap: 10px; }
+.plat.d { border-color: var(--day); } .plat.n { border-color: var(--nos); }
+.plat.d > .t h3 { color: var(--day); } .plat.n > .t h3 { color: var(--nos); }
+.d .inner { border-color: color-mix(in srgb, var(--day) 45%, var(--line)); }
+.n .inner { border-color: color-mix(in srgb, var(--nos) 45%, var(--line)); }
+.d .hot { background: var(--day-soft); border-color: var(--day); }
+.n .hot { background: var(--nos-soft); border-color: var(--nos); }
+.dashed { border-style: dashed; }
+.chip { display: inline-block; font: 500 12px/1.3 var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 2px 6px; background: var(--sheet); overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wire { font: 500 12.5px/1.35 var(--font-mono); color: var(--muted); padding: 2px 0 2px 14px; border-left: 2px dashed var(--line); margin-left: 10px; overflow-wrap: anywhere; }
+.wire b { color: var(--ink); font-weight: 600; }
+.wire.d { border-left-color: var(--day); } .wire.n { border-left-color: var(--nos); }
+.tag { font: 600 10.5px/1 var(--font-mono); letter-spacing: 0.06em; text-transform: uppercase; padding: 3px 6px; border-radius: 3px; white-space: nowrap; }
+.tag.d { background: var(--day); color: var(--sheet); } .tag.n { background: var(--nos); color: var(--sheet); }
+.tag.o { border: 1px dashed var(--muted); color: var(--muted); }
+
+/* Figure 2 — request flow */
+.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; counter-reset: s; }
+@media (max-width: 860px) { .flow { grid-template-columns: 1fr; } }
+.flow li { counter-increment: s; border: 1.5px solid var(--line); border-radius: 6px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; min-width: 0; }
+.flow li::before { content: "STEP " counter(s); font: 600 11px/1 var(--font-mono); letter-spacing: 0.08em; color: var(--muted); }
+.flow li.d { border-color: var(--day); background: var(--day-soft); }
+.flow li.n { border-color: var(--nos); background: var(--nos-soft); }
+.flow li.y { border-color: var(--you); background: var(--you-soft); }
+.flow p { font-size: 13.5px; }
+
+/* Figure 3 — layer stacks */
+.stacks { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+@media (max-width: 760px) { .stacks { grid-template-columns: 1fr; } }
+.stack { display: grid; gap: 6px; align-content: end; }
+.stack .layers { display: grid; gap: 4px; }
+.layer { border-radius: 4px; padding: 7px 10px; font-size: 13px; border: 1px solid var(--line); background: var(--bg); }
+.layer.split { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; }
+.layer.split > div { border: 1px solid var(--line); border-radius: 3px; padding: 5px 7px; background: var(--sheet); }
+.stack.d .mine { border-color: var(--day); background: var(--day-soft); }
+.stack.n .mine { border-color: var(--nos); background: var(--nos-soft); }
+.stack .verdict { font-size: 13.5px; }
+
+/* Text sections */
+.sec { display: grid; gap: 10px; }
+.steps { margin: 0; padding-left: 1.4em; display: grid; gap: 6px; max-width: 72ch; }
+.note { border-left: 3px solid var(--warn); padding: 6px 12px; background: var(--sheet); border-radius: 0 4px 4px 0; }
+.note b { color: var(--warn); }
+.tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; background: var(--sheet); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14px; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font: 600 11px/1.2 var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+tr:last-child td { border-bottom: 0; }
+td:first-child { font-weight: 600; white-space: nowrap; }
+td .tag { margin-left: 4px; }
+footer { color: var(--muted); font-size: 13px; display: grid; gap: 4px; }
+a { color: var(--day); }
+</style>
+
+<main>
+  <header class="masthead">
+    <div class="meta">
+      <span class="label">Hackathon starter</span>
+      <span class="label">Description and operation</span>
+      <span class="label">Written in ASD-STE100 style</span>
+    </div>
+    <h1>Daytona and Nosana: how the parts connect</h1>
+    <p>This page shows what each platform is, where your code runs, and how a request moves from the browser to the AI model.</p>
+  </header>
+
+  <section class="answer" aria-label="Short answers">
+    <div class="n"><span class="label">Is Nosana a VM?</span><b>No.</b><p>Nosana runs your Docker image as a <b>container</b> on a GPU computer that another person owns. You rent the GPU by the hour.</p></div>
+    <div class="d"><span class="label">What is Daytona?</span><b>A sandbox service.</b><p>A sandbox is an <b>isolated Linux computer</b> on Daytona's servers. It starts from a Docker image. It has no GPU in this setup.</p></div>
+    <div><span class="label">Do both use Docker?</span><b>Yes, Docker images.</b><p>You give each platform a Docker image. Each platform starts a container from that image. Neither gives you a full VM.</p></div>
+  </section>
+
+  <!-- FIGURE 1 -->
+  <section class="figure" aria-labelledby="f1">
+    <header><h2 id="f1">Figure 1. Where each part runs</h2><span class="caption">A box inside a box means "runs inside".</span></header>
+
+    <div class="box you">
+      <div class="t"><h3>Your laptop</h3><span class="s">You control this.</span></div>
+      <div class="row">
+        <div class="box"><div class="t"><b>Terminal</b><span class="s">npm scripts + SDKs</span></div>
+          <div class="chips"><span class="chip">npm run daytona:web</span><span class="chip">curl …/v1/models</span></div></div>
+        <div class="box"><div class="t"><b>.env file</b><span class="s">secret keys, never commit</span></div>
+          <div class="chips"><span class="chip">DAYTONA_API_KEY</span><span class="chip">NOSANA_API_KEY (optional)</span></div></div>
+        <div class="box"><div class="t"><b>Browser</b><span class="s">dashboards + your web page</span></div>
+          <div class="chips"><span class="chip">app.daytona.io</span><span class="chip">deploy.nosana.com</span></div></div>
+      </div>
+    </div>
+
+    <div class="cols">
+      <div style="display:grid; gap:8px; min-width:0">
+        <div class="wire d"><b>SDK call</b> with DAYTONA_API_KEY → "create sandbox"</div>
+        <div class="wire d"><b>Browser</b> opens https://3000-&lt;sandbox-id&gt;.&lt;proxy&gt; → web page</div>
+        <div class="box plat d">
+          <div class="t"><h3>Daytona</h3><span class="tag d">CPU · fast start</span></div>
+          <p class="s">Use it to run code and host your web app.</p>
+
+          <div class="box inner">
+            <div class="t"><b>Control plane</b><span class="s">Daytona's API servers</span></div>
+            <div class="chips"><span class="chip">API (SDK talks here)</span><span class="chip">Proxy (preview URLs)</span><span class="chip">Snapshot registry</span></div>
+          </div>
+
+          <div class="box inner">
+            <div class="t"><b>Runner</b><span class="s">a large server that Daytona owns</span></div>
+            <div class="box hot">
+              <div class="t"><b>Sandbox</b><span class="tag d">your sandbox</span></div>
+              <span class="s">Isolated Linux with its own namespaces. Dedicated vCPU, RAM and disk. Starts from a <b>snapshot</b> (a Docker image).</span>
+              <div class="chips"><span class="chip">Daemon + Toolbox API (files, run code, git)</span><span class="chip">python3 -m http.server :3000</span><span class="chip">site/index.html</span></div>
+            </div>
+            <div class="box dashed"><div class="t"><b>More sandboxes</b><span class="s">side by side, start in under a second</span></div></div>
+          </div>
+
+          <div class="box inner dashed">
+            <div class="t"><b>Volume</b><span class="tag o">optional</span></div>
+            <span class="s">Shared folder in S3 storage. Files stay after a sandbox is deleted. Mount it at a path such as <code>/home/daytona/volume</code>.</span>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid; gap:8px; min-width:0">
+        <div class="wire n"><b>Dashboard</b> (or API key) → "create deployment"</div>
+        <div class="wire n"><b>Browser / curl</b> calls https://&lt;id&gt;.node.k8s.prd.nos.ci → model</div>
+        <div class="box plat n">
+          <div class="t"><h3>Nosana</h3><span class="tag n">GPU · pay per hour</span></div>
+          <p class="s">Use it to run the AI model.</p>
+
+          <div class="box inner">
+            <div class="t"><b>Deploy dashboard + API</b><span class="s">deployment manager</span></div>
+            <span class="s">A <b>deployment</b> keeps your <b>job</b> alive. It sets replicas, timeout, and a new job every 6 hours (rotation).</span>
+            <div class="chips"><span class="chip">job definition (JSON)</span><span class="chip">image · cmd · gpu · expose</span></div>
+          </div>
+
+          <div class="box inner">
+            <div class="t"><b>Market</b><span class="s">one queue for each GPU type</span></div>
+            <span class="s">Your job waits here until a host takes it. The Solana blockchain records the job and the payment. Your credits pay for it.</span>
+            <div class="chips"><span class="chip">RTX 3060 · $0.05/h</span></div>
+          </div>
+
+          <div class="box inner">
+            <div class="t"><b>Host (node)</b><span class="s">a GPU computer that another person owns</span></div>
+            <span class="s">The host runs the Nosana node software. The node pulls your image and starts it with Podman. The NVIDIA Container Toolkit connects the container to the GPU.</span>
+            <div class="box hot">
+              <div class="t"><b>Container</b><span class="tag n">your job</span></div>
+              <div class="chips"><span class="chip">ollama/ollama image</span><span class="chip">qwen3:8b model</span><span class="chip">port 11434</span><span class="chip">GPU: 12 GB VRAM</span></div>
+            </div>
+          </div>
+
+          <div class="box inner">
+            <div class="t"><b>Tunnel (frp)</b><span class="s">gives the port a public URL</span></div>
+            <span class="s">While the model loads, the URL shows "Service Unavailable … starting up" (state <code>loading</code>).</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FIGURE 2 -->
+  <section class="figure" aria-labelledby="f2">
+    <header><h2 id="f2">Figure 2. One question, from browser to answer</h2><span class="caption">The two platforms do not talk to each other. Your page connects them.</span></header>
+    <ol class="flow">
+      <li class="y"><h3>Open the page</h3><p>The browser opens the Daytona preview URL.</p></li>
+      <li class="d"><h3>Daytona sends the page</h3><p>The proxy finds your sandbox. The web server on port 3000 sends <code>index.html</code>.</p></li>
+      <li class="y"><h3>Send the question</h3><p>The page sends the question to the Nosana URL at <code>/v1/chat/completions</code>.</p></li>
+      <li class="n"><h3>Nosana runs the model</h3><p>The tunnel sends the request to the host. Ollama runs qwen3:8b on the GPU.</p></li>
+      <li class="y"><h3>Show the answer</h3><p>The answer goes back the same way. The page shows it.</p></li>
+    </ol>
+  </section>
+
+  <!-- FIGURE 3 -->
+  <section class="figure" aria-labelledby="f3">
+    <header><h2 id="f3">Figure 3. VM, container, and what each platform uses</h2><span class="caption">Read each stack from the bottom up.</span></header>
+    <div class="stacks">
+      <div class="stack">
+        <span class="label">Virtual machine (VM)</span>
+        <div class="layers">
+          <div class="layer split"><div>App</div><div>App</div></div>
+          <div class="layer split"><div>Full guest OS</div><div>Full guest OS</div></div>
+          <div class="layer">Hypervisor</div>
+          <div class="layer">Physical server</div>
+        </div>
+        <p class="verdict">Each VM has its own full operating system. It is strong isolation but slow to start (tens of seconds or more).</p>
+      </div>
+      <div class="stack d">
+        <span class="label">Daytona sandbox</span>
+        <div class="layers">
+          <div class="layer split"><div class="mine">Your sandbox</div><div>Other sandbox</div></div>
+          <div class="layer">Isolation: own Linux namespaces, fixed CPU/RAM/disk</div>
+          <div class="layer">Runner (Daytona's server)</div>
+          <div class="layer">Physical server</div>
+        </div>
+        <p class="verdict">Container-style. Daytona's docs say "own Linux namespaces"; they do not call it a VM. It starts in under a second.</p>
+      </div>
+      <div class="stack n">
+        <span class="label">Nosana job</span>
+        <div class="layers">
+          <div class="layer mine">Your container (ollama)</div>
+          <div class="layer">Podman + NVIDIA Container Toolkit</div>
+          <div class="layer">Nosana node software · host's Linux</div>
+          <div class="layer">Host's computer with GPU</div>
+        </div>
+        <p class="verdict">A normal container with GPU access. When the job ends, the container and its files are deleted (stateless).</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="when">
+    <h2 id="when">When to use each platform</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Need</th><th>Use</th><th>Reason</th></tr></thead>
+        <tbody>
+          <tr><td>Run an AI model</td><td><span class="tag n">Nosana</span></td><td>It has GPUs. Models need GPU memory (VRAM).</td></tr>
+          <tr><td>Host a web page or API</td><td><span class="tag d">Daytona</span></td><td>It starts fast and gives a preview URL for any port.</td></tr>
+          <tr><td>Run code that an AI wrote</td><td><span class="tag d">Daytona</span></td><td>Each sandbox is isolated. Bad code cannot damage other sandboxes.</td></tr>
+          <tr><td>Run many tasks at the same time</td><td><span class="tag d">Daytona</span></td><td>Start one sandbox for each task. They run in parallel.</td></tr>
+          <tr><td>Keep files between runs</td><td><span class="tag d">Daytona volume</span></td><td>Nosana deletes files when a job ends.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="gloss">
+    <h2 id="gloss">Words on this page</h2>
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Term</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>Docker image</td><td>A packed set of files: an operating system base, the app, and its libraries. It does not run by itself.</td></tr>
+          <tr><td>Container</td><td>A running copy of an image. It shares the server's Linux kernel but cannot see other containers.</td></tr>
+          <tr><td>VM</td><td>Virtual machine. A full computer in software, with its own operating system.</td></tr>
+          <tr><td>Sandbox <span class="tag d">D</span></td><td>Daytona's isolated Linux environment. You create, start, stop and delete it with the SDK or dashboard.</td></tr>
+          <tr><td>Snapshot <span class="tag d">D</span></td><td>The Docker image that a sandbox starts from.</td></tr>
+          <tr><td>Runner <span class="tag d">D</span></td><td>A Daytona server that holds many sandboxes.</td></tr>
+          <tr><td>Preview URL <span class="tag d">D</span></td><td>A public link to one port in a sandbox: <code>https://&lt;port&gt;-&lt;sandbox-id&gt;.&lt;proxy&gt;</code>.</td></tr>
+          <tr><td>Volume <span class="tag d">D</span></td><td>A shared folder that stays after sandboxes are deleted.</td></tr>
+          <tr><td>Host / node <span class="tag n">N</span></td><td>A GPU computer that another person owns. It runs Nosana software and earns NOS tokens for jobs.</td></tr>
+          <tr><td>Job <span class="tag n">N</span></td><td>One run of your container on one host, for a fixed time.</td></tr>
+          <tr><td>Job definition <span class="tag n">N</span></td><td>The JSON that tells the host which image to run, which command, which port to open, and whether to use the GPU.</td></tr>
+          <tr><td>Deployment <span class="tag n">N</span></td><td>A manager for jobs. It restarts and replaces jobs so your service stays up.</td></tr>
+          <tr><td>Market <span class="tag n">N</span></td><td>A queue for one GPU type, with one price per hour.</td></tr>
+          <tr><td>Endpoint <span class="tag n">N</span></td><td>The public URL of your job's open port.</td></tr>
+          <tr><td>GPU / VRAM</td><td>The graphics chip that runs AI models fast, and its memory. The model must fit in VRAM.</td></tr>
+          <tr><td>Port</td><td>A numbered door on a computer. A web server listens on one port, for example 3000 or 11434.</td></tr>
+          <tr><td>Ollama</td><td>Software that downloads and serves open AI models. It has an OpenAI-compatible API.</td></tr>
+          <tr><td>API key</td><td>A secret password for scripts. Keep it in <code>.env</code>. Do not put it in Git or in a web page.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="next">
+    <h2 id="next">Procedure: complete the setup</h2>
+    <ol class="steps">
+      <li>Wait until the Nosana deployment shows a new event after "Job list confirmed".</li>
+      <li>Run <code>curl &lt;ENDPOINT&gt;/v1/models</code>. Continue when the result is JSON, not an HTML page.</li>
+      <li>Get a Daytona API key at <span class="mono">app.daytona.io → API Keys</span>. Put it in <code>.env</code>.</li>
+      <li>Run <code>npm run daytona:web</code>. Open the URL that it shows.</li>
+      <li>Put the Nosana endpoint in the first box of the page. Send a question.</li>
+    </ol>
+    <p class="note"><b>CAUTION:</b> Both platforms use credits while your work runs. Stop the Nosana deployment (Actions → Stop) and run <code>npm run daytona:clean</code> when you finish.</p>
+  </section>
+
+  <footer>
+    <span>Sources: Daytona docs (architecture, sandboxes, preview, volumes) and Nosana docs (deployments, API, hosts). Checked 15 Nov 2026.</span>
+    <span>Daytona does not say in its docs if a sandbox is a container or a microVM. This page uses its own words: "own Linux namespaces".</span>
+  </footer>
+</main>
