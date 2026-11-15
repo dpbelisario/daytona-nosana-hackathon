@@ -55,15 +55,33 @@ function isCapacityError(e: unknown): boolean {
   return /limit exceeded|Maximum allowed|concurrency limits/i.test(String((e as Error)?.message ?? e))
 }
 
+async function waitStopped(s: Sandbox, timeoutMs = 120_000): Promise<void> {
+  const until = Date.now() + timeoutMs
+  while (Date.now() < until) {
+    await s.refreshData().catch(() => {})
+    if (s.state === "stopped" || s.state === "archived") return
+    await new Promise((r) => setTimeout(r, 3000))
+  }
+}
+
 async function freeCapacity(keepSlug: string): Promise<boolean> {
   const running: Sandbox[] = []
   for await (const s of daytona().list({ labels: { kind: "belli-demo" } })) {
-    if (s.state === "started" && s.labels?.slug !== keepSlug) running.push(s)
+    if (s.labels?.slug === keepSlug) continue
+    // Already on its way down: just wait for it to release its memory.
+    if (s.state === "stopping") {
+      await waitStopped(s)
+      return true
+    }
+    if (s.state === "started") running.push(s)
   }
   if (running.length === 0) return false
-  running.sort((a, b) => String((a as { lastActivityAt?: string }).lastActivityAt ?? a.updatedAt ?? "").localeCompare(String((b as { lastActivityAt?: string }).lastActivityAt ?? b.updatedAt ?? "")))
-  console.log("capacity full: stopping demo", running[0].labels?.slug)
-  await running[0].stop(120)
+  const at = (x: Sandbox) => String((x as { lastActivityAt?: string }).lastActivityAt ?? x.updatedAt ?? "")
+  running.sort((a, b) => at(a).localeCompare(at(b)))
+  const victim = running[0]
+  console.log("capacity full: stopping demo", victim.labels?.slug)
+  await victim.stop(120).catch((e: Error) => console.warn("stop failed", victim.labels?.slug, e.message))
+  await waitStopped(victim)
   return true
 }
 
