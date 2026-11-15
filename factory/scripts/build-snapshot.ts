@@ -56,8 +56,9 @@ const feEnv =
     `STRICT_ORG_ID=${ORG_ID}`,
     `NEXT_PUBLIC_BYPASS_TOKEN=${BYPASS_TOKEN}`,
     "NEXT_PUBLIC_API_URL=https://belli-demo-api.invalid/api",
-    `NEXT_PUBLIC_TENANT_BRAND={"key":"belli-demo","displayName":"Belli Demo Airline Placeholder","primaryColorHex":"#fe01dc","logo":"/belli-demo-logo.svg"}`,
-    `NEXT_PUBLIC_ALLOWED_HOSTS={"dashboard":["dashboard.belli-demo.internal"],"booking-portal":["portal.belli-demo.internal"]}`,
+    // Single quotes: an unquoted "#" starts a dotenv comment and truncates the JSON.
+    `NEXT_PUBLIC_TENANT_BRAND='{"key":"belli-demo","displayName":"Belli Demo Airline Placeholder","primaryColorHex":"#fe01dc","logo":"/belli-demo-logo.svg"}'`,
+    `NEXT_PUBLIC_ALLOWED_HOSTS='{"dashboard":["dashboard.belli-demo.internal"],"booking-portal":["portal.belli-demo.internal"]}'`,
     `NEXT_PUBLIC_DEMO_PREPAID_AGENT_ID=${DEMO_PREPAID_AGENT_ID}`,
     `NEXT_PUBLIC_DEMO_POSTPAID_AGENT_ID=${DEMO_POSTPAID_AGENT_ID}`,
     // The production build throws without these; real values come from FE_EXTRA_ENV.
