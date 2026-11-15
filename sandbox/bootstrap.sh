@@ -32,8 +32,15 @@ set -a; source "$D/api.env"; set +a
 if [ ! -f "$D/.seeded" ]; then
   [ -f "$D/profile.json" ] || fail "profile.json missing"
   status seeding "schema"
-  atlas migrate apply --dir "file://$API/db/migrations" --revisions-schema public \
-    --url "postgres://$DB_USER:$DB_PASSWORD@127.0.0.1:$DB_PORT/$DB_NAME?sslmode=disable" || fail "migrations"
+  MIG="$API/db/migrations"; URL="postgres://$DB_USER:$DB_PASSWORD@127.0.0.1:$DB_PORT/$DB_NAME?sslmode=disable"
+  # Snapshot Postgres is 16; the pg_dump baseline has a PG17-only SET. Drop it and re-hash.
+  if grep -q '^SET transaction_timeout' "$MIG"/*_baseline.sql; then
+    sed -i '/^SET transaction_timeout/d' "$MIG"/*_baseline.sql && atlas migrate hash --dir "file://$MIG" || fail "migration hash"
+  fi
+  # One migration per connection until past the baseline: it empties search_path
+  # for its connection (belli-api's Taskfile applies it alone for this reason).
+  atlas migrate apply --dir "file://$MIG" --revisions-schema public --url "$URL" 1 || fail "migrations (baseline)"
+  atlas migrate apply --dir "file://$MIG" --revisions-schema public --url "$URL" || fail "migrations"
   cd "$API" || fail "api dir"
   status seeding "reference data"; ./api seed:default || fail "seed:default"
   status seeding "organisation";   ./api seed:org-bootstrap --org "$BYPASS_ORG_ID" || fail "seed:org-bootstrap"

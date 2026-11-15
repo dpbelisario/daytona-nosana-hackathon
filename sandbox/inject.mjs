@@ -21,6 +21,16 @@ const replacements = [
   ["#FE01DC", color],
 ]
 
+// Snapshots built before the fe.env quoting fix inlined a TRUNCATED brand:
+// dotenv cut the unquoted value at "#", leaving ..."primaryColorHex":"  and
+// the dashboard 500s on the invalid JSON. Complete it in both escape styles.
+const tail = `#${color.slice(1)}","logo":"/belli-demo-logo.svg"}`
+replacements.push(
+  ['\\"primaryColorHex\\":\\""', '\\"primaryColorHex\\":\\"' + tail.replace(/"/g, '\\"') + '"'],
+  [`"primaryColorHex":"'`, `"primaryColorHex":"${tail}'`],
+  [`"primaryColorHex":"\``, `"primaryColorHex":"${tail}\``],
+)
+
 const TEXT = /\.(js|mjs|cjs|json|html|rsc|body|meta|txt|css|map)$/
 let changed = 0
 function walk(dir) {
@@ -47,6 +57,9 @@ for (const envFile of [".env.production.local", ".env.production", ".env"]) {
   if (!existsSync(p)) continue
   let text = readFileSync(p, "utf8")
   for (const [from, to] of replacements) text = text.split(from).join(to)
+  // Quote JSON values: an unquoted "#" starts a comment in dotenv.
+  text = text.replace(/^(NEXT_PUBLIC_TENANT_BRAND|NEXT_PUBLIC_ALLOWED_HOSTS)=(\{.*\})\s*$/gm, (_, k, v) => `${k}='${v}'`)
+  text = text.replace(/^NEXT_PUBLIC_TENANT_BRAND='?\{[^\n]*$/m, `NEXT_PUBLIC_TENANT_BRAND='${JSON.stringify({ key: "belli-demo", displayName: name, primaryColorHex: color, logo: "/belli-demo-logo.svg" })}'`)
   writeFileSync(p, text)
 }
 
