@@ -1,15 +1,17 @@
 // Daytona side of the factory: one sandbox per airline, found by label,
-// created from the prebuilt snapshot (docs/factory-contract.md).
+// created from the prebuilt snapshot. Mirrors scripts/try-demo.ts.
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+
 import { Daytona, type Sandbox } from "@daytona/sdk"
 
 export const DASHBOARD_PORT = 3000
-/**
- * Raw-preview fallback (no custom domain yet): edge.mjs serves the booking
- * portal on this port when no X-Demo-Public-Host header is present, and the
- * dashboard on DASHBOARD_PORT. Proposed to Claude A in issue #1.
- */
-export const PORTAL_PORT = 4000
-export const SNAPSHOT = process.env.DEMO_SNAPSHOT ?? "belli-demo-stack-v1"
+/** sandbox/edge.mjs serves the booking portal here (raw previews work as-is). */
+export const PORTAL_PORT = 3001
+export const SNAPSHOT = process.env.DEMO_SNAPSHOT ?? process.env.SNAPSHOT_NAME ?? "belli-demo-stack-v1"
+const RUNTIME_FILES = ["bootstrap.sh", "edge.mjs", "inject.mjs"]
+// next.config.mjs traces ../sandbox/* into the server bundle.
+const SANDBOX_DIR = join(process.cwd(), "..", "sandbox")
 const DEMO_DIR = "/home/daytona/demo"
 
 export type DemoStatus = {
@@ -37,44 +39,80 @@ export async function findDemo(slug: string): Promise<Sandbox | null> {
 export type DemoFiles = {
   profile: unknown
   brand: { displayName: string; primaryColorHex: string; iata: string }
-  hosts: { dashboard: string; portal: string }
-  logo?: Buffer
+  /** Public hosts; null = use the sandbox's raw Daytona preview hosts. */
+  hosts: { dashboard: string; portal: string } | null
+  logoUrls: string[]
 }
 
 /** Create the airline's sandbox from the snapshot, upload its files, start bootstrap. */
 export async function createDemo(slug: string, iata: string, files: DemoFiles): Promise<Sandbox> {
-  const sandbox = await daytona().create({
-    snapshot: SNAPSHOT,
-    public: true,
-    labels: { kind: "belli-demo", slug, airline: iata, snapshot: SNAPSHOT },
-    autoStopInterval: 30,
-  })
-  const json = (value: unknown) => Buffer.from(JSON.stringify(value, null, 2))
+  const sandbox = await daytona().create(
+    {
+      snapshot: SNAPSHOT,
+      public: true,
+      labels: { kind: "belli-demo", slug, airline: iata, snapshot: SNAPSHOT },
+      autoStopInterval: 60,
+    },
+    { timeout: 280 },
+  )
+  if (process.env.DEMO_CPU) {
+    const resources = {
+      cpu: Number(process.env.DEMO_CPU),
+      memory: Number(process.env.DEMO_MEMORY || 4),
+      disk: Number(process.env.DEMO_DISK || 10),
+    }
+    await sandbox.resize(resources).catch((e: Error) => console.warn(`resize skipped: ${e.message}`))
+  }
+  const hosts = files.hosts ?? {
+    dashboard: new URL((await sandbox.getPreviewLink(DASHBOARD_PORT)).url).host,
+    portal: new URL((await sandbox.getPreviewLink(PORTAL_PORT)).url).host,
+  }
+  const json = (value: unknown) => Buffer.from(JSON.stringify(value))
+  const logo = await fetchLogo(files.logoUrls)
   await sandbox.fs.createFolder(DEMO_DIR, "755").catch(() => undefined)
   await sandbox.fs.uploadFiles([
     { source: json(files.profile), destination: `${DEMO_DIR}/profile.json` },
     { source: json(files.brand), destination: `${DEMO_DIR}/brand.json` },
-    { source: json(files.hosts), destination: `${DEMO_DIR}/hosts.json` },
-    ...(files.logo ? [{ source: files.logo, destination: `${DEMO_DIR}/logo.png` }] : []),
+    { source: json(hosts), destination: `${DEMO_DIR}/hosts.json` },
+    ...(logo ? [{ source: logo, destination: `${DEMO_DIR}/logo.png` }] : []),
   ])
   await runBootstrap(sandbox)
   return sandbox
 }
 
-/** bootstrap.sh is idempotent: first run seeds, later runs only start services. */
+/**
+ * Upload the current sandbox runtime (fixes apply without a new snapshot),
+ * then run bootstrap.sh. It is idempotent: first run seeds, later runs only
+ * start services.
+ */
 export async function runBootstrap(sandbox: Sandbox): Promise<void> {
-  const session = `bootstrap-${Date.now()}`
+  await sandbox.fs.uploadFiles(
+    RUNTIME_FILES.map((f) => ({ source: readFileSync(join(SANDBOX_DIR, f)), destination: `${DEMO_DIR}/${f}` })),
+  )
+  const session = `boot-${Date.now()}`
   await sandbox.process.createSession(session)
-  await sandbox.process.executeSessionCommand(session, {
-    command: `bash ${DEMO_DIR}/bootstrap.sh > ${DEMO_DIR}/bootstrap.log 2>&1`,
-    runAsync: true,
-  })
+  await sandbox.process.executeSessionCommand(session, { command: `bash ${DEMO_DIR}/bootstrap.sh`, runAsync: true })
+}
+
+async function fetchLogo(urls: string[]): Promise<Buffer | null> {
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
+      if (res.ok && (res.headers.get("content-type") ?? "").startsWith("image/")) {
+        const buf = Buffer.from(await res.arrayBuffer())
+        if (buf.length > 200) return buf
+      }
+    } catch {
+      // try the next source
+    }
+  }
+  return null
 }
 
 /** Start a stopped/archived sandbox and re-run bootstrap. Returns false if already running. */
 export async function wakeDemo(sandbox: Sandbox): Promise<boolean> {
   if (sandbox.state === "started") return false
-  await sandbox.start(120)
+  await sandbox.start(240)
   await runBootstrap(sandbox)
   return true
 }

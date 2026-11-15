@@ -1,7 +1,7 @@
 // POST {email, airline} → reuse the airline's demo sandbox, or create one
 // from the snapshot. Returns at once; the browser polls /api/status/<slug>.
 import { createDemo, daytonaConfigured, findDemo, wakeDemo } from "@/lib/daytona"
-import { attachDemoDomains, demoHosts, domainsConfigured } from "@/lib/domains"
+import { attachDemoDomains, domainsConfigured } from "@/lib/domains"
 import { recordLead } from "@/lib/leads"
 import { generateProfile, slugFor } from "@/lib/profile"
 import { findAirline } from "@/lib/reference"
@@ -34,8 +34,8 @@ export async function POST(req: Request) {
   // Two clicks for the same airline share one build.
   if (!inFlight.has(slug)) {
     const job = (async () => {
-      const generated = await generateProfile(airline.iata)
-      const hosts = domainsConfigured() ? await attachDemoDomains(slug) : demoHosts(slug)
+      const generated = await generateProfile(airline.name)
+      const hosts = domainsConfigured() ? await attachDemoDomains(slug) : null
       await createDemo(slug, airline.iata, {
         profile: generated.profile,
         brand: {
@@ -43,7 +43,8 @@ export async function POST(req: Request) {
           primaryColorHex: generated.brand.primaryColorHex,
           iata: airline.iata,
         },
-        hosts: { dashboard: hosts.dashboard, portal: hosts.portal },
+        hosts: hosts && { dashboard: hosts.dashboard, portal: hosts.portal },
+        logoUrls: generated.brand.logoUrls,
       })
     })().finally(() => inFlight.delete(slug))
     inFlight.set(slug, job)

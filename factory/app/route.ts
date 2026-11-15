@@ -15,7 +15,9 @@ export async function GET(req: Request) {
   html = html
     // Relative assets keep loading from the marketing site.
     .replace(/<head([^>]*)>/i, `<head$1><base href="${SOURCE}">`)
-    .replace(DEMO_LINK, 'href="#belli-demo" data-belli-demo')
+    // Absolute factory URL: <base> would otherwise resolve "#..." against the
+    // marketing site if demo-gate.js has not loaded yet.
+    .replace(DEMO_LINK, `href="${origin}/#belli-demo" data-belli-demo`)
     .replace(/<\/body>/i, `<script src="${origin}/demo-gate.js" defer></script></body>`)
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } })
 }
