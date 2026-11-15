@@ -7,7 +7,19 @@
 // AEROAPI_KEY (real schedules), DEMO_CPU/DEMO_MEMORY/DEMO_DISK.
 
 import { Daytona, type Sandbox } from "@daytona/sdk"
+import { readFileSync } from "node:fs"
+import { dirname, join } from "node:path"
+import { fileURLToPath } from "node:url"
 import { generateProfile } from "../lib/profile"
+
+// Runtime scripts are uploaded on every run, so fixes to sandbox/ apply
+// without rebuilding the snapshot.
+const SANDBOX_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "sandbox")
+async function uploadRuntime(sandbox: Sandbox) {
+  for (const f of ["bootstrap.sh", "edge.mjs", "inject.mjs"]) {
+    await sandbox.fs.uploadFile(readFileSync(join(SANDBOX_DIR, f)), `/home/daytona/demo/${f}`)
+  }
+}
 
 const SNAPSHOT = process.env.SNAPSHOT_NAME || "belli-demo-stack-v1"
 
@@ -79,6 +91,7 @@ async function main() {
     console.log(`  uploaded ${files.map((f) => f[0]).join(", ")}${logo ? "" : " (no logo found; monogram will be used)"}`)
   }
 
+  await uploadRuntime(sandbox)
   // Idempotent: seeds on first run, only starts services afterwards.
   await sandbox.process.createSession("boot").catch(() => {})
   await sandbox.process.executeSessionCommand("boot", { command: "bash /home/daytona/demo/bootstrap.sh", runAsync: true })
