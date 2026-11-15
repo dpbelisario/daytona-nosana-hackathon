@@ -113,13 +113,26 @@ for (let i = 0; i < 120 && !links; i++) {
 if (!links) throw new Error("demo not ready after 20 minutes")
 console.log("ready:", links)
 
+// The demo shows a lead-capture "Welcome" dialog; dismiss any open dialog.
+async function dismissDialogs(page) {
+  for (let i = 0; i < 3; i++) {
+    const skip = page.getByRole("button", { name: /^skip$/i })
+    if (await skip.isVisible().catch(() => false)) await skip.click().catch(() => {})
+    else if (await page.locator("[role=dialog], [data-state=open].fixed.inset-0").first().isVisible().catch(() => false)) await page.keyboard.press("Escape").catch(() => {})
+    else return
+    await pause(600)
+  }
+}
+
 // 3. Airline dashboard: flights, AWBs.
 await clip(browser, "2-dashboard", async (page) => {
   await page.goto(links.dashboard, { waitUntil: "networkidle" })
   await pause(3000)
+  await dismissDialogs(page)
   for (const path of ["/dashboards/flights", "/dashboards/air-waybills"]) {
     await page.goto(links.dashboard.replace(/\/$/, "") + path, { waitUntil: "networkidle" }).catch(() => {})
     await pause(2500)
+    await dismissDialogs(page)
     await zoomOn(page, "table tbody tr", { scale: 1.6, hold: 1800 })
     await tryClick(page, ["table tbody tr >> nth=0"], { scale: 1.5, hold: 600 })
     await pause(3000)
@@ -131,12 +144,17 @@ await clip(browser, "2-dashboard", async (page) => {
 await clip(browser, "3-portal", async (page) => {
   await page.goto(links.portal, { waitUntil: "networkidle" })
   await pause(2500)
+  await dismissDialogs(page)
   await tryClick(page, ["text=/prepaid/i", "button:has-text('Continue')", "[role=radio] >> nth=0"], { scale: 1.8 })
-  await tryClick(page, ["button:has-text('Continue')", "button[type=submit]"], { scale: 1.6, hold: 500 })
+  // Optional: older pickers needed a Continue; Prepaid now goes straight to /bookings.
+  await dismissDialogs(page)
+  if (!page.url().includes("/bookings")) await tryClick(page, ["button:has-text('Continue')"], { scale: 1.6, hold: 500 }).catch(() => {})
   await page.waitForLoadState("networkidle").catch(() => {})
   await pause(3000)
+  await dismissDialogs(page)
   await zoomOn(page, "table tbody tr, main", { scale: 1.5, hold: 1800 })
-  await tryClick(page, ["a:has-text('New booking')", "button:has-text('New booking')", "a[href*='/bookings/new']"], { scale: 1.8 })
+  await dismissDialogs(page)
+  await tryClick(page, ["a:has-text('New booking')", "button:has-text('New booking')", "a[href*='/bookings/new']"], { scale: 1.8 }).catch(() => {})
   await pause(4000)
 })
 
