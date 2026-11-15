@@ -1,6 +1,6 @@
 // POST {email, airline} → reuse the airline's demo sandbox, or create one
 // from the snapshot. Returns at once; the browser polls /api/status/<slug>.
-import { createDemo, daytonaConfigured, findDemo, readStatus, runBootstrap, wakeDemo } from "@/lib/daytona"
+import { createDemo, daytonaConfigured, ensureRuntime, findDemo, readStatus, runBootstrap, wakeDemo } from "@/lib/daytona"
 import { attachDemoDomains, domainsConfigured } from "@/lib/domains"
 import { recordLead } from "@/lib/leads"
 import { generateProfile, slugFor } from "@/lib/profile"
@@ -29,7 +29,10 @@ export async function POST(req: Request) {
     const woke = await wakeDemo(existing)
     // A sandbox whose bootstrap failed gets a fresh run with the current
     // sandbox/ runtime (uploaded each run); bootstrap.sh is idempotent.
-    if (!woke && (await readStatus(existing)).state === "error") await runBootstrap(existing)
+    if (!woke) {
+      if ((await readStatus(existing)).state === "error") await runBootstrap(existing)
+      else await ensureRuntime(existing)
+    }
     await recordLead(email, airline.name, slug, statusUrl)
     return Response.json({ slug, reused: true, statusUrl })
   }

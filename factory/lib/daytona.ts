@@ -1,5 +1,6 @@
 // Daytona side of the factory: one sandbox per airline, found by label,
 // created from the prebuilt snapshot. Mirrors scripts/try-demo.ts.
+import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -9,7 +10,7 @@ export const DASHBOARD_PORT = 3000
 /** sandbox/edge.mjs serves the booking portal here (raw previews work as-is). */
 export const PORTAL_PORT = 3001
 export const SNAPSHOT = process.env.DEMO_SNAPSHOT ?? process.env.SNAPSHOT_NAME ?? "belli-demo-stack-v1"
-const RUNTIME_FILES = ["bootstrap.sh", "edge.mjs", "inject.mjs"]
+const RUNTIME_FILES = ["bootstrap.sh", "edge.mjs", "inject.mjs", "hosts.mjs"]
 // next.config.mjs traces ../sandbox/* into the server bundle.
 const SANDBOX_DIR = join(process.cwd(), "..", "sandbox")
 const DEMO_DIR = "/home/daytona/demo"
@@ -86,9 +87,10 @@ export async function createDemo(slug: string, iata: string, files: DemoFiles): 
  * start services.
  */
 export async function runBootstrap(sandbox: Sandbox): Promise<void> {
-  await sandbox.fs.uploadFiles(
-    RUNTIME_FILES.map((f) => ({ source: readFileSync(join(SANDBOX_DIR, f)), destination: `${DEMO_DIR}/${f}` })),
-  )
+  await sandbox.fs.uploadFiles([
+    ...RUNTIME_FILES.map((f) => ({ source: readFileSync(join(SANDBOX_DIR, f)), destination: `${DEMO_DIR}/${f}` })),
+    { source: Buffer.from(runtimeVersion()), destination: `${DEMO_DIR}/runtime.version` },
+  ])
   const session = `boot-${Date.now()}`
   await sandbox.process.createSession(session)
   await sandbox.process.executeSessionCommand(session, { command: `bash ${DEMO_DIR}/bootstrap.sh`, runAsync: true })
@@ -138,4 +140,25 @@ export async function previewOrigin(sandbox: Sandbox, port = DASHBOARD_PORT): Pr
   const origin = new URL(url).origin
   previewCache.set(key, { url: origin, at: Date.now() })
   return origin
+}
+
+function runtimeVersion(): string {
+  const h = createHash("sha256")
+  for (const f of RUNTIME_FILES) h.update(readFileSync(join(SANDBOX_DIR, f)))
+  return h.digest("hex").slice(0, 16)
+}
+
+/**
+ * Re-run bootstrap when a running sandbox has an older sandbox/ runtime than
+ * this deployment (fixes reach existing demos without recreating them).
+ * Returns true when a re-run was started.
+ */
+export async function ensureRuntime(sandbox: Sandbox): Promise<boolean> {
+  const current = await sandbox.fs
+    .downloadFile(`${DEMO_DIR}/runtime.version`, 10)
+    .then((b) => b.toString().trim())
+    .catch(() => "")
+  if (current === runtimeVersion()) return false
+  await runBootstrap(sandbox)
+  return true
 }

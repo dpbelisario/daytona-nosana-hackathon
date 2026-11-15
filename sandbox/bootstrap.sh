@@ -50,6 +50,8 @@ if [ ! -f "$D/.seeded" ]; then
   touch "$D/.seeded"
 fi
 
+node "$D/hosts.mjs" || echo "hosts.mjs failed (non-fatal)"
+
 status starting "api"
 pkill -f "$API/api server" 2>/dev/null
 (cd "$API" && nohup ./api server >>"$D/api.log" 2>&1 &)
