@@ -51,9 +51,12 @@ if [ ! -f "$D/.seeded" ]; then
   status seeding "organisation";   ./api seed:org-bootstrap --org "$BYPASS_ORG_ID" || fail "seed:org-bootstrap"
   status seeding "airline data (flights, aircraft, AWBs)"
   ./api seed:demo --org "$BYPASS_ORG_ID" --profile-file "$D/profile.json" || fail "seed:demo"
-  status seeding "branding"; node "$D/inject.mjs" || fail "branding"
   touch "$D/.seeded"
 fi
+
+# Idempotent: only placeholders still present are replaced, so later inject.mjs
+# fixes (logo, names) also reach sandboxes that were seeded earlier.
+status starting "branding"; node "$D/inject.mjs" || fail "branding"
 
 status starting "api"
 pkill -f "$API/api server" 2>/dev/null
