@@ -108,6 +108,8 @@ curl -fsSL https://go.dev/dl/go1.27.3.linux-amd64.tar.gz | $SUDO tar -C /usr/loc
 curl -fsSL https://nodejs.org/dist/v22.11.0/node-v22.11.0-linux-x64.tar.xz | $SUDO tar -C /usr/local --strip-components=1 -xJ
 $SUDO curl -fsSL https://release.ariga.io/atlas/atlas-linux-amd64-latest -o /usr/local/bin/atlas && $SUDO chmod +x /usr/local/bin/atlas
 export PATH=/usr/local/go/bin:/usr/local/bin:$PATH
+# Node 22.11's bundled Corepack has stale signing keys ("Cannot find matching keyid").
+$SUDO npm install -g corepack@latest
 $SUDO corepack enable
 
 echo "### sources"

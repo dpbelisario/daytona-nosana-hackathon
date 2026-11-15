@@ -1,5 +1,5 @@
 // Front door of a demo sandbox. See docs/factory-contract.md.
-//  :3000 = internal dashboard, :3001 = booking portal (raw Daytona preview
+//  :3000 = internal dashboard, :3001 and :4000 = booking portal (raw Daytona preview
 //  URLs work as-is). Behind the factory router, X-Demo-Public-Host decides.
 //  /__demo/status → status.json (public; the factory polls it)
 //  /belli-api/*   → belli-api on 127.0.0.1:1323 as /api/* (CORS for both public hosts)
@@ -117,4 +117,6 @@ const handler = (portContext) => (req, res) => {
 }
 
 http.createServer(handler("dashboard")).listen(3000, "0.0.0.0", () => console.log("edge: dashboard on :3000"))
+// Portal on :3001 and :4000 (the factory web layer links :4000).
 http.createServer(handler("portal")).listen(3001, "0.0.0.0", () => console.log("edge: booking portal on :3001"))
+http.createServer(handler("portal")).listen(4000, "0.0.0.0", () => console.log("edge: booking portal on :4000"))
