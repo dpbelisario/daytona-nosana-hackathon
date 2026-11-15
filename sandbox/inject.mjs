@@ -41,6 +41,14 @@ function walk(dir) {
   }
 }
 walk(join(FE, ".next"))
+// next start also loads the env file at runtime; keep it consistent with the build output.
+for (const envFile of [".env.production.local", ".env.production", ".env"]) {
+  const p = join(FE, envFile)
+  if (!existsSync(p)) continue
+  let text = readFileSync(p, "utf8")
+  for (const [from, to] of replacements) text = text.split(from).join(to)
+  writeFileSync(p, text)
+}
 
 // Logo: the brand's logo path is /belli-demo-logo.svg. Wrap a PNG if one was
 // uploaded, else draw a monogram, so a logo always exists.
