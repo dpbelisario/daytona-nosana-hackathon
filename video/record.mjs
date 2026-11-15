@@ -100,6 +100,7 @@ async function main() {
   await context.addInitScript(CURSOR)
   const page = await context.newPage()
 
+  if (process.env.SKIP_FORM !== "1") {
   console.log("1. belli.ai home")
   await page.goto(FACTORY, { waitUntil: "domcontentloaded", timeout: 60_000 })
   await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {})
@@ -127,14 +128,16 @@ async function main() {
     console.log("3. submit → status page")
     await glideClick(page, page.locator("#bd-card button[type=submit]"))
     await page.waitForURL(/\/demo\//, { timeout: 120_000 })
-    await sleep(3000)
-    if (!dashboard) {
+    await sleep(6000)
+    if (!dashboard && process.env.STOP_AFTER_SUBMIT !== "1") {
       const link = page.locator("a", { hasText: /dashboard/i }).first()
       await link.waitFor({ timeout: 20 * 60_000 })
       dashboard = await link.getAttribute("href")
       portal = await page.locator("a", { hasText: /booking portal/i }).first().getAttribute("href")
       await zoom(page, link, 1.6, 1500)
     }
+  }
+
   }
 
   if (dashboard) {
