@@ -31,7 +31,15 @@ const contextOf = (host, fallback) => {
   return fallback
 }
 
-const allowedOrigins = () => new Set([hosts.dashboard, hosts.portal].filter(Boolean).map((h) => `https://${h}`))
+// The public hosts plus their sibling preview ports (3000/3001/4000-<sandbox>…).
+const allowedOrigins = () => {
+  const set = new Set([hosts.dashboard, hosts.portal].filter(Boolean).map((h) => `https://${h}`))
+  for (const h of [hosts.dashboard, hosts.portal].filter(Boolean)) {
+    const m = /^(\d+)-(.+)$/.exec(h)
+    if (m) for (const port of ["3000", "3001", "4000"]) set.add(`https://${port}-${m[2]}`)
+  }
+  return set
+}
 
 function preparing(res, status) {
   res.writeHead(503, { "content-type": "text/html; charset=utf-8", "retry-after": "5", "cache-control": "no-store" })
