@@ -49,9 +49,6 @@ async function main() {
     if (sandbox.state !== "started") await sandbox.start(300)
   } else {
     console.log(`Creating sandbox from snapshot ${SNAPSHOT}…`)
-    const resources = process.env.DEMO_CPU
-      ? { cpu: Number(process.env.DEMO_CPU), memory: Number(process.env.DEMO_MEMORY || 4), disk: Number(process.env.DEMO_DISK || 10) }
-      : undefined
     sandbox = await daytona.create(
       {
         snapshot: SNAPSHOT,
@@ -61,7 +58,6 @@ async function main() {
       },
       { timeout: 600 },
     )
-    if (resources) await sandbox.resize(resources).catch((e) => console.warn(`resize skipped: ${e.message}`))
 
   }
 

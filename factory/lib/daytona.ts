@@ -46,24 +46,50 @@ export type DemoFiles = {
 }
 
 /** Create the airline's sandbox from the snapshot, upload its files, start bootstrap. */
-export async function createDemo(slug: string, iata: string, files: DemoFiles): Promise<Sandbox> {
-  const sandbox = await daytona().create(
-    {
-      snapshot: SNAPSHOT,
-      public: true,
-      labels: { kind: "belli-demo", slug, airline: iata, snapshot: SNAPSHOT },
-      autoStopInterval: 60,
-    },
-    { timeout: 280 },
-  )
-  if (process.env.DEMO_CPU) {
-    const resources = {
-      cpu: Number(process.env.DEMO_CPU),
-      memory: Number(process.env.DEMO_MEMORY || 4),
-      disk: Number(process.env.DEMO_DISK || 10),
-    }
-    await sandbox.resize(resources).catch((e: Error) => console.warn(`resize skipped: ${e.message}`))
+/**
+ * The account's total vCPU/memory cap (Tier 1: 10 GiB) fits one demo at a time,
+ * since each inherits the snapshot's 8 GiB. When a create or start hits the cap,
+ * stop the least recently used other demo and retry. It wakes again on its next visit.
+ */
+function isCapacityError(e: unknown): boolean {
+  return /limit exceeded|Maximum allowed|concurrency limits/i.test(String((e as Error)?.message ?? e))
+}
+
+async function freeCapacity(keepSlug: string): Promise<boolean> {
+  const running: Sandbox[] = []
+  for await (const s of daytona().list({ labels: { kind: "belli-demo" } })) {
+    if (s.state === "started" && s.labels?.slug !== keepSlug) running.push(s)
   }
+  if (running.length === 0) return false
+  running.sort((a, b) => String((a as { lastActivityAt?: string }).lastActivityAt ?? a.updatedAt ?? "").localeCompare(String((b as { lastActivityAt?: string }).lastActivityAt ?? b.updatedAt ?? "")))
+  console.log("capacity full: stopping demo", running[0].labels?.slug)
+  await running[0].stop(120)
+  return true
+}
+
+async function withCapacity<T>(keepSlug: string, fn: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await fn()
+    } catch (e) {
+      if (attempt >= 3 || !isCapacityError(e) || !(await freeCapacity(keepSlug))) throw e
+    }
+  }
+}
+
+export async function createDemo(slug: string, iata: string, files: DemoFiles): Promise<Sandbox> {
+  // Daytona rejects resources together with a snapshot; the snapshot's size applies.
+  const sandbox = await withCapacity(slug, () =>
+    daytona().create(
+      {
+        snapshot: SNAPSHOT,
+        public: true,
+        labels: { kind: "belli-demo", slug, airline: iata, snapshot: SNAPSHOT },
+        autoStopInterval: 60,
+      },
+      { timeout: 280 },
+    ),
+  )
   const hosts = files.hosts ?? {
     dashboard: new URL((await sandbox.getPreviewLink(DASHBOARD_PORT)).url).host,
     portal: new URL((await sandbox.getPreviewLink(PORTAL_PORT)).url).host,
@@ -114,7 +140,7 @@ async function fetchLogo(urls: string[]): Promise<Buffer | null> {
 /** Start a stopped/archived sandbox and re-run bootstrap. Returns false if already running. */
 export async function wakeDemo(sandbox: Sandbox): Promise<boolean> {
   if (sandbox.state === "started") return false
-  await sandbox.start(240)
+  await withCapacity(String(sandbox.labels?.slug ?? ""), () => sandbox.start(240))
   await runBootstrap(sandbox)
   return true
 }
