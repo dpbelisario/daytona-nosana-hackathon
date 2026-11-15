@@ -129,6 +129,10 @@ df -h / | tail -1
 echo "### belli frontend"
 cd $H/belli
 cp $H/demo/fe.env .env.production.local
+# Snapshot copy only: skip next build's type-check stage (slow, memory-heavy,
+# and the demo branch is already type-checked in its own CI).
+sed -i 's/typescript: {/typescript: { ignoreBuildErrors: true,/' next.config.mjs
+grep -q "ignoreBuildErrors: true" next.config.mjs
 corepack prepare --activate || true
 pnpm install --frozen-lockfile
 NODE_OPTIONS=--max-old-space-size=6144 pnpm build
