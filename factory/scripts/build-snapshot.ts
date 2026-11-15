@@ -9,7 +9,7 @@
 //   SNAPSHOT_NAME   default belli-demo-stack-v1
 //   API_REF         default claude/demo-profile-json (belli-ai/belli-api)
 //   FE_REF          default release/demo            (belli-ai/belli)
-//   BUILD_CPU / BUILD_MEMORY / BUILD_DISK   default 4 / 8 / 30 (your tier's max if lower)
+//   BUILD_CPU / BUILD_MEMORY / BUILD_DISK   default 4 / 8 / 10 (10 GiB is the per-sandbox max)
 //   FE_EXTRA_ENV    path to a file of extra KEY=VALUE lines for the FE build
 //                   (e.g. NEXT_PUBLIC_POSTHOG_KEY / _HOST from the demo Vercel project)
 //   API_EXTRA_ENV   path to a file of extra KEY=VALUE lines for belli-api
@@ -98,7 +98,9 @@ $SUDO mkdir -p $H/demo && $SUDO chown -R "$(id -u):$(id -g)" $H
 
 echo "### packages"
 $SUDO apt-get update -q
-$SUDO apt-get install -y -q curl git ca-certificates postgresql postgresql-contrib redis-server build-essential xz-utils
+$SUDO apt-get install -y -q --no-install-recommends curl git ca-certificates postgresql postgresql-contrib redis-server build-essential xz-utils
+$SUDO apt-get clean && $SUDO rm -rf /var/lib/apt/lists/*   # 10 GiB disk cap per sandbox
+df -h / | tail -1
 
 echo "### toolchains"
 curl -fsSL https://go.dev/dl/go1.27.3.linux-amd64.tar.gz | $SUDO tar -C /usr/local -xz
@@ -119,6 +121,7 @@ echo "### belli-api"
 cd $H/belli-api
 GOFLAGS=-mod=mod go build -o api .
 go clean -modcache -cache || true
+df -h / | tail -1
 
 echo "### belli frontend"
 cd $H/belli
@@ -126,13 +129,18 @@ cp $H/demo/fe.env .env.production.local
 corepack prepare --activate || true
 pnpm install --frozen-lockfile
 NODE_OPTIONS=--max-old-space-size=6144 pnpm build
+rm -rf .next/cache
 pnpm store prune || true
+rm -rf "$(pnpm store path 2>/dev/null)" ~/.cache || true
+df -h / | tail -1
 
 echo "### database"
 $SUDO service postgresql start
 for i in $(seq 1 30); do pg_isready -q && break; sleep 1; done
 set -a; . $H/demo/api.env; set +a
 $SUDO -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE $DB_USER LOGIN PASSWORD '$DB_PASSWORD'" -c "CREATE DATABASE $DB_NAME OWNER $DB_USER"
+# The baseline migration creates these; do it as superuser so the app role never needs to.
+$SUDO -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public' -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public' 
 $SUDO service postgresql stop
 $SUDO service redis-server stop || true
 
@@ -172,7 +180,7 @@ async function run(sandbox: Sandbox, label: string, command: string, envs: Recor
 
 async function main() {
   const daytona = new Daytona()
-  const resources = { cpu: Number(env("BUILD_CPU", "4")), memory: Number(env("BUILD_MEMORY", "8")), disk: Number(env("BUILD_DISK", "30")) }
+  const resources = { cpu: Number(env("BUILD_CPU", "4")), memory: Number(env("BUILD_MEMORY", "8")), disk: Number(env("BUILD_DISK", "10")) }
   console.log(`Creating build sandbox (ubuntu:24.04, ${JSON.stringify(resources)})…`)
   const sandbox = await daytona.create(
     { image: "ubuntu:24.04", resources, labels: { kind: "belli-demo-builder" }, autoStopInterval: 120 },
