@@ -10,34 +10,19 @@ import { Daytona, type Sandbox } from "@daytona/sdk"
 import { readFileSync } from "node:fs"
 import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
+import { fetchLogo } from "../lib/logo"
 import { generateProfile } from "../lib/profile"
 
 // Runtime scripts are uploaded on every run, so fixes to sandbox/ apply
 // without rebuilding the snapshot.
 const SANDBOX_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "sandbox")
 async function uploadRuntime(sandbox: Sandbox) {
-  for (const f of ["bootstrap.sh", "edge.mjs", "inject.mjs"]) {
+  for (const f of ["bootstrap.sh", "edge.mjs", "inject.mjs", "hosts.mjs"]) {
     await sandbox.fs.uploadFile(readFileSync(join(SANDBOX_DIR, f)), `/home/daytona/demo/${f}`)
   }
 }
 
 const SNAPSHOT = process.env.SNAPSHOT_NAME || "belli-demo-stack-v1"
-
-async function fetchLogo(urls: string[]): Promise<Buffer | null> {
-  for (const url of urls) {
-    try {
-      const res = await fetch(url, { signal: AbortSignal.timeout(8000) })
-      const type = res.headers.get("content-type") ?? ""
-      if (res.ok && type.startsWith("image/")) {
-        const buf = Buffer.from(await res.arrayBuffer())
-        if (buf.length > 200) return buf
-      }
-    } catch {
-      /* try the next source */
-    }
-  }
-  return null
-}
 
 async function publicHost(sandbox: Sandbox, port: number): Promise<string> {
   const link = await sandbox.getPreviewLink(port)
@@ -46,7 +31,7 @@ async function publicHost(sandbox: Sandbox, port: number): Promise<string> {
 
 async function main() {
   const query = process.argv.slice(2).join(" ") || "Etihad"
-  const daytona = new Daytona()
+  const daytona = new Daytona(process.env.DAYTONA_API_KEY ? undefined : { apiKey: "via-network-secret" })
 
   console.log(`Generating profile for "${query}"…`)
   const g = await generateProfile(query)
@@ -78,6 +63,11 @@ async function main() {
     )
     if (resources) await sandbox.resize(resources).catch((e) => console.warn(`resize skipped: ${e.message}`))
 
+  }
+
+  // Upload the airline files unless this sandbox was already seeded.
+  const seeded = await sandbox.process.executeCommand("test -f /home/daytona/demo/.seeded && echo yes || echo no")
+  if (!seeded.result.includes("yes")) {
     const dashboard = await publicHost(sandbox, 3000)
     const portal = await publicHost(sandbox, 3001)
     const files: [string, Buffer][] = [
@@ -89,6 +79,7 @@ async function main() {
     if (logo) files.push(["logo.png", logo])
     for (const [name, data] of files) await sandbox.fs.uploadFile(data, `/home/daytona/demo/${name}`)
     console.log(`  uploaded ${files.map((f) => f[0]).join(", ")}${logo ? "" : " (no logo found; monogram will be used)"}`)
+
   }
 
   await uploadRuntime(sandbox)

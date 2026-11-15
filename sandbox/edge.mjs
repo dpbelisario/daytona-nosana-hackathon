@@ -31,7 +31,15 @@ const contextOf = (host, fallback) => {
   return fallback
 }
 
-const allowedOrigins = () => new Set([hosts.dashboard, hosts.portal].filter(Boolean).map((h) => `https://${h}`))
+// The public hosts plus their sibling preview ports (3000/3001/4000-<sandbox>…).
+const allowedOrigins = () => {
+  const set = new Set([hosts.dashboard, hosts.portal].filter(Boolean).map((h) => `https://${h}`))
+  for (const h of [hosts.dashboard, hosts.portal].filter(Boolean)) {
+    const m = /^(\d+)-(.+)$/.exec(h)
+    if (m) for (const port of ["3000", "3001", "4000"]) set.add(`https://${port}-${m[2]}`)
+  }
+  return set
+}
 
 function preparing(res, status) {
   res.writeHead(503, { "content-type": "text/html; charset=utf-8", "retry-after": "5", "cache-control": "no-store" })
@@ -72,17 +80,10 @@ const handler = (portContext) => (req, res) => {
   if (status.state !== "ready") return preparing(res, status)
 
   if (url === "/belli-api" || url.startsWith("/belli-api/")) {
-    const origin = String(req.headers.origin || "")
-    const cors = allowedOrigins().has(origin)
-      ? {
-          "access-control-allow-origin": origin,
-          "access-control-allow-credentials": "true",
-          "access-control-allow-methods": "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-          "access-control-allow-headers": String(req.headers["access-control-request-headers"] || "*"),
-          "access-control-max-age": "600",
-          vary: "Origin",
-        }
-      : {}
+    // Daytona's preview proxy already answers preflights and adds CORS headers
+    // for the requesting origin; adding ours too sends the header twice and the
+    // browser rejects it. So strip the API's CORS headers and add none.
+    const cors = {}
     if (req.method === "OPTIONS") {
       res.writeHead(204, cors)
       res.end()

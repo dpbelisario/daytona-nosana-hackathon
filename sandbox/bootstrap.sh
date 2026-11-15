@@ -32,24 +32,31 @@ set -a; source "$D/api.env"; set +a
 if [ ! -f "$D/.seeded" ]; then
   [ -f "$D/profile.json" ] || fail "profile.json missing"
   status seeding "schema"
-  MIG="$API/db/migrations"; URL="postgres://$DB_USER:$DB_PASSWORD@127.0.0.1:$DB_PORT/$DB_NAME?sslmode=disable"
-  # Snapshot Postgres is 16; the pg_dump baseline has a PG17-only SET. Drop it and re-hash.
-  if grep -q '^SET transaction_timeout' "$MIG"/*_baseline.sql; then
-    sed -i '/^SET transaction_timeout/d' "$MIG"/*_baseline.sql && atlas migrate hash --dir "file://$MIG" || fail "migration hash"
+  # The baseline was dumped from Postgres 17; the sandbox runs 16, which has no
+  # transaction_timeout. Drop that SET and re-hash so Atlas accepts the dir.
+  if grep -lq "^SET transaction_timeout" "$API"/db/migrations/*.sql; then
+    sed -i '/^SET transaction_timeout/d' "$API"/db/migrations/*.sql
+    atlas migrate hash --dir "file://$API/db/migrations" || fail "migrate hash"
   fi
-  # One migration per connection until past the baseline: it empties search_path
-  # for its connection (belli-api's Taskfile applies it alone for this reason).
-  atlas migrate apply --dir "file://$MIG" --revisions-schema public --url "$URL" 1 || fail "migrations (baseline)"
-  atlas migrate apply --dir "file://$MIG" --revisions-schema public --url "$URL" || fail "migrations"
+  # The pg_dump baseline empties search_path for its connection, so the next
+  # file fails on the same connection; a new run (new connection) continues.
+  migrated=""
+  for _ in 1 2 3; do
+    atlas migrate apply --dir "file://$API/db/migrations" --revisions-schema public \
+      --url "postgres://$DB_USER:$DB_PASSWORD@127.0.0.1:$DB_PORT/$DB_NAME?sslmode=disable" && { migrated=1; break; }
+  done
+  [ -n "$migrated" ] || fail "migrations"
   cd "$API" || fail "api dir"
   status seeding "reference data"; ./api seed:default || fail "seed:default"
   status seeding "organisation";   ./api seed:org-bootstrap --org "$BYPASS_ORG_ID" || fail "seed:org-bootstrap"
   status seeding "airline data (flights, aircraft, AWBs)"
   ./api seed:demo --org "$BYPASS_ORG_ID" --profile-file "$D/profile.json" || fail "seed:demo"
-  status seeding "branding"; node "$D/inject.mjs" || fail "branding"
   touch "$D/.seeded"
 fi
 
+# Idempotent: only placeholders still present are replaced, so later inject.mjs
+# fixes (logo, names) also reach sandboxes that were seeded earlier.
+status starting "branding"; node "$D/inject.mjs" || fail "branding"
 node "$D/hosts.mjs" || echo "hosts.mjs failed (non-fatal)"
 
 status starting "api"

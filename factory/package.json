@@ -9,7 +9,9 @@
     "typecheck": "tsc --noEmit",
     "profile": "tsx scripts/generate-profile.ts",
     "snapshot": "tsx scripts/build-snapshot.ts",
-    "try": "tsx scripts/try-demo.ts"
+    "try": "tsx scripts/try-demo.ts",
+    "sync-runtime": "node scripts/sync-runtime.mjs",
+    "prebuild": "node scripts/sync-runtime.mjs || true"
   },
   "dependencies": {
     "@daytona/sdk": "0.231.1",

@@ -14,7 +14,13 @@ const name = clean(brand.displayName) || "Demo Airline"
 const color = /^#[0-9a-fA-F]{6}$/.test(brand.primaryColorHex ?? "") ? brand.primaryColorHex.toLowerCase() : "#1f4e79"
 const apiUrl = `https://${clean(hosts.dashboard)}/belli-api`
 
+// Top-left of the dashboard: the no-login demo's org avatar and user name.
+const DEMO_ORG_IMAGE = "https://img.clerk.com/eyJ0eXBlIjoicHJveHkiLCJzcmMiOiJodHRwczovL2ltYWdlcy5jbGVyay5kZXYvdXBsb2FkZWQvaW1nXzJweUh2OWRNdWlZUFhSSm9vQzhFTXh3ODM2TyJ9"
+
 const replacements = [
+  [DEMO_ORG_IMAGE, "/belli-demo-logo.svg"],
+  ["/logos/belli-logo.png", "/belli-demo-logo.svg"], // components/nav/demo-user.tsx avatar
+  ['"Demo User"', `"${name}"`],
   ["https://belli-demo-api.invalid/api", apiUrl],
   ["Belli Demo Airline Placeholder", name],
   ["#fe01dc", color],

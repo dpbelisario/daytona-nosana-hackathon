@@ -56,13 +56,17 @@ const feEnv =
     `STRICT_ORG_ID=${ORG_ID}`,
     `NEXT_PUBLIC_BYPASS_TOKEN=${BYPASS_TOKEN}`,
     "NEXT_PUBLIC_API_URL=https://belli-demo-api.invalid/api",
-    `NEXT_PUBLIC_TENANT_BRAND={"key":"belli-demo","displayName":"Belli Demo Airline Placeholder","primaryColorHex":"#fe01dc","logo":"/belli-demo-logo.svg"}`,
-    `NEXT_PUBLIC_ALLOWED_HOSTS={"dashboard":["dashboard.belli-demo.internal"],"booking-portal":["portal.belli-demo.internal"]}`,
+    // Single quotes: an unquoted "#" starts a dotenv comment and truncates the JSON.
+    `NEXT_PUBLIC_TENANT_BRAND='{"key":"belli-demo","displayName":"Belli Demo Airline Placeholder","primaryColorHex":"#fe01dc","logo":"/belli-demo-logo.svg"}'`,
+    `NEXT_PUBLIC_ALLOWED_HOSTS='{"dashboard":["dashboard.belli-demo.internal"],"booking-portal":["portal.belli-demo.internal"]}'`,
     `NEXT_PUBLIC_DEMO_PREPAID_AGENT_ID=${DEMO_PREPAID_AGENT_ID}`,
     `NEXT_PUBLIC_DEMO_POSTPAID_AGENT_ID=${DEMO_POSTPAID_AGENT_ID}`,
     // The production build throws without these; real values come from FE_EXTRA_ENV.
     "NEXT_PUBLIC_POSTHOG_KEY=phc_belli_demo_factory_disabled",
     "NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com",
+    // app/api/orders/request-reopen constructs a Resend client at import time;
+    // next build fails without a key. Email is unused in the demo.
+    "RESEND_API_KEY=re_belli_demo_disabled",
   ].join("\n") +
   "\n" +
   extra("FE_EXTRA_ENV") // later lines win
