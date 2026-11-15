@@ -1,0 +1,26 @@
+{
+  "name": "daytona-nosana-hackathon",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "daytona:web": "tsx scripts/daytona-web.ts",
+    "daytona:list": "tsx scripts/daytona-web.ts list",
+    "daytona:clean": "tsx scripts/daytona-web.ts clean",
+    "nosana:markets": "tsx scripts/nosana.ts markets",
+    "nosana:deploy": "tsx scripts/nosana.ts deploy",
+    "nosana:status": "tsx scripts/nosana.ts status",
+    "nosana:stop": "tsx scripts/nosana.ts stop",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@daytona/sdk": "^0.231.1",
+    "@nosana/kit": "^2.24.5",
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2"
+  }
+}
