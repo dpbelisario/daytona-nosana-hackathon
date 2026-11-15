@@ -63,6 +63,9 @@ const feEnv =
     // The production build throws without these; real values come from FE_EXTRA_ENV.
     "NEXT_PUBLIC_POSTHOG_KEY=phc_belli_demo_factory_disabled",
     "NEXT_PUBLIC_POSTHOG_HOST=https://us.i.posthog.com",
+    // app/api/orders/request-reopen constructs a Resend client at import time;
+    // next build fails without a key. Email is unused in the demo.
+    "RESEND_API_KEY=re_belli_demo_disabled",
   ].join("\n") +
   "\n" +
   extra("FE_EXTRA_ENV") // later lines win
