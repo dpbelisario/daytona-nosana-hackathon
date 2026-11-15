@@ -38,11 +38,16 @@
     const out = document.getElementById('out');
     out.textContent = '…';
     try {
-      const r = await fetch(ep.value.replace(/\/$/, '') + '/v1/chat/completions', {
+      const base = ep.value.trim().replace(/\/$/, '');
+      // Use whatever model the deployment is serving (works for Ollama, vLLM, SGLang).
+      const models = await (await fetch(base + '/v1/models')).json();
+      const model = models.data?.[0]?.id;
+      if (!model) throw new Error('No model found at ' + base + '/v1/models (still loading?)');
+      const r = await fetch(base + '/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          model: 'qwen3:0.6b',
+          model,
           messages: [{ role: 'user', content: document.getElementById('prompt').value }],
         }),
       });
