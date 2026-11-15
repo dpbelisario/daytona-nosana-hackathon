@@ -120,3 +120,25 @@ Rules:
 4. A second airline (for example `RJ`, `PR`, `GF`) gives a different, consistent dataset.
 5. Sandboxes carry labels; a cleanup command deletes old demos; no secrets are inside prospect
    sandboxes.
+
+---
+
+## 5. Domains: `{airline}.belli.ai` (checked live 2026-11-15)
+
+- **belli.ai DNS is on Vercel** (`ns1/ns2.vercel-dns.com`). Cloudflare and GoDaddy are not needed.
+  Do not change the nameservers.
+- `*.belli.ai` is **already a wildcard to an existing Vercel project** (any unknown subdomain →
+  308 to `/dashboards/air-waybills`). Do not remove it. Explicit names already in use: `www`
+  (runploy), `api` (AWS), `app`, `lion`, `demo` (→ demo.getbelli.ai).
+- **Router:** a new Vercel project `demo-router` (Next.js). Its middleware reads the subdomain,
+  finds the sandbox (Daytona label `subdomain=<name>`, or Upstash/Edge Config), and
+  `NextResponse.rewrite()`s to `https://3000-<sandboxId>.<daytona-proxy>` with request header
+  `X-Daytona-Skip-Preview-Warning: true`. Sandboxes are `public: true`.
+- **Per-demo domain (exact `{airline}.belli.ai`):** when a demo is created, add the name to the
+  router project. An explicit project domain wins over the wildcard. Vercel issues the cert itself:
+  `POST https://api.vercel.com/v10/projects/{project}/domains?teamId={team}` body `{"name":"etihad.belli.ai"}`.
+  When a demo is deleted: `DELETE https://api.vercel.com/v9/projects/{project}/domains/{domain}?teamId={team}`.
+  A 409 means the name is taken (for example a real tenant), so retry with `<name>-demo`.
+  Env: `VERCEL_TOKEN` (team-scoped), `VERCEL_TEAM_ID`, `VERCEL_ROUTER_PROJECT_ID`.
+- **Alternative with no per-demo API calls:** add `*.demo.belli.ai` once to the router project.
+  Demos are then `etihad.demo.belli.ai`.
