@@ -93,6 +93,7 @@ const BUILD = String.raw`#!/usr/bin/env bash
 set -euo pipefail  # no -x: it would print the clone header and DB password
 export DEBIAN_FRONTEND=noninteractive
 SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
+as_postgres() { if [ "$(id -u)" -eq 0 ]; then runuser -u postgres -- "$@"; else sudo -u postgres "$@"; fi; }
 H=/home/daytona
 $SUDO mkdir -p $H/demo && $SUDO chown -R "$(id -u):$(id -g)" $H
 
@@ -138,9 +139,9 @@ echo "### database"
 $SUDO service postgresql start
 for i in $(seq 1 30); do pg_isready -q && break; sleep 1; done
 set -a; . $H/demo/api.env; set +a
-$SUDO -u postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE $DB_USER LOGIN PASSWORD '$DB_PASSWORD'" -c "CREATE DATABASE $DB_NAME OWNER $DB_USER"
+as_postgres psql -v ON_ERROR_STOP=1 -c "CREATE ROLE $DB_USER LOGIN PASSWORD '$DB_PASSWORD'" -c "CREATE DATABASE $DB_NAME OWNER $DB_USER"
 # The baseline migration creates these; do it as superuser so the app role never needs to.
-$SUDO -u postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public' -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public' 
+as_postgres psql -v ON_ERROR_STOP=1 -d "$DB_NAME" -c 'CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public' -c 'CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public' 
 $SUDO service postgresql stop
 $SUDO service redis-server stop || true
 
