@@ -64,6 +64,27 @@ async function waitStopped(s: Sandbox, timeoutMs = 120_000): Promise<void> {
   }
 }
 
+/** Disk cap (30 GiB on Tier 1) counts stopped sandboxes too: archive the oldest stopped demo. */
+async function freeDisk(keepSlug: string): Promise<boolean> {
+  const stopped: Sandbox[] = []
+  for await (const s of daytona().list({ labels: { kind: "belli-demo" } })) {
+    if (s.labels?.slug !== keepSlug && s.state === "stopped") stopped.push(s)
+  }
+  if (stopped.length === 0) return false
+  const at = (x: Sandbox) => String((x as { lastActivityAt?: string }).lastActivityAt ?? x.updatedAt ?? "")
+  stopped.sort((a, b) => at(a).localeCompare(at(b)))
+  const victim = stopped[0]
+  console.log("disk full: archiving demo", victim.labels?.slug)
+  await victim.archive().catch((e: Error) => console.warn("archive failed", victim.labels?.slug, e.message))
+  const until = Date.now() + 240_000
+  while (Date.now() < until) {
+    await victim.refreshData().catch(() => {})
+    if (victim.state === "archived") break
+    await new Promise((r) => setTimeout(r, 4000))
+  }
+  return true
+}
+
 async function freeCapacity(keepSlug: string): Promise<boolean> {
   const running: Sandbox[] = []
   for await (const s of daytona().list({ labels: { kind: "belli-demo" } })) {
@@ -90,7 +111,9 @@ async function withCapacity<T>(keepSlug: string, fn: () => Promise<T>): Promise<
     try {
       return await fn()
     } catch (e) {
-      if (attempt >= 3 || !isCapacityError(e) || !(await freeCapacity(keepSlug))) throw e
+      if (attempt >= 3 || !isCapacityError(e)) throw e
+      const freed = /disk/i.test(String((e as Error)?.message)) ? await freeDisk(keepSlug) : await freeCapacity(keepSlug)
+      if (!freed) throw e
     }
   }
 }
