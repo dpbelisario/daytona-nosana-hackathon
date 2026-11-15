@@ -112,6 +112,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e)
+  console.error(`try-demo failed: ${e instanceof Error ? e.message : String(e)}`)
   process.exit(1)
 })

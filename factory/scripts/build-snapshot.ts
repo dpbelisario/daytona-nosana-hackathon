@@ -90,7 +90,7 @@ const apiEnv =
   extra("API_EXTRA_ENV")
 
 const BUILD = String.raw`#!/usr/bin/env bash
-set -euxo pipefail
+set -euo pipefail  # no -x: it would print the clone header and DB password
 export DEBIAN_FRONTEND=noninteractive
 SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO="sudo"
 H=/home/daytona
@@ -202,6 +202,6 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e)
+  console.error(`build-snapshot failed: ${e instanceof Error ? e.message : String(e)}`)
   process.exit(1)
 })
