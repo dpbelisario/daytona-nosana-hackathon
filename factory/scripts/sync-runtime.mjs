@@ -6,7 +6,7 @@ import { dirname, join } from "node:path"
 import { fileURLToPath } from "node:url"
 
 const root = join(dirname(fileURLToPath(import.meta.url)), "..")
-const files = ["bootstrap.sh", "edge.mjs", "inject.mjs"]
+const files = ["bootstrap.sh", "edge.mjs", "inject.mjs", "hosts.mjs"]
 const body = files.map((f) => `  ${JSON.stringify(f)}: ${JSON.stringify(readFileSync(join(root, "..", "sandbox", f), "utf8"))},`).join("\n")
 writeFileSync(
   join(root, "lib", "runtime-files.ts"),

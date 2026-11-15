@@ -109,7 +109,7 @@ const handler = (portContext) => (req, res) => {
   }
 
   const ctx = contextOf(host, portContext)
-  const headers = { ...req.headers, host: INTERNAL[ctx], "x-forwarded-host": INTERNAL[ctx], "x-forwarded-proto": "https" }
+  const headers = { ...req.headers, host: INTERNAL[ctx], "x-forwarded-host": host, "x-forwarded-proto": "https" }
   forward(req, res, {
     port: 3100,
     path: url,

@@ -7,15 +7,16 @@ const DEMO_LINK = /href="https:\/\/demo\.getbelli\.ai[^"]*"/g
 
 export const revalidate = 300
 
-export async function GET(req: Request) {
-  const origin = new URL(req.url).origin
+export async function GET() {
   const res = await fetch(SOURCE, { headers: { "User-Agent": "belli-demo-factory" } })
   if (!res.ok) return new Response(`Landing source returned ${res.status}`, { status: 502 })
   let html = await res.text()
   html = html
-    // Relative assets keep loading from the marketing site.
-    .replace(/<head([^>]*)>/i, `<head$1><base href="${SOURCE}">`)
-    .replace(DEMO_LINK, 'href="#belli-demo" data-belli-demo')
-    .replace(/<\/body>/i, `<script src="${origin}/demo-gate.js" defer></script></body>`)
+    // Root-relative assets resolve against this origin and are proxied to the
+    // marketing site by the fallback rewrite in next.config.mjs (no <base>,
+    // which made fonts and Astro modules cross-origin and broke hydration).
+    .replace(/https:\/\/www\.belli\.ai\//g, "/")
+    .replace(DEMO_LINK, 'href="/#belli-demo" data-belli-demo')
+    .replace(/<\/body>/i, `<script src="/demo-gate.js" defer></script></body>`)
   return new Response(html, { headers: { "Content-Type": "text/html; charset=utf-8" } })
 }

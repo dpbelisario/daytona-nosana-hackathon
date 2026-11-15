@@ -1,9 +1,8 @@
 // POST {email, airline} → reuse the airline's demo sandbox, or create one
 // from the snapshot. Returns at once; the browser polls /api/status/<slug>.
-import { createDemo, daytonaConfigured, findDemo, wakeDemo } from "@/lib/daytona"
+import { createDemo, daytonaConfigured, ensureRuntime, findDemo, readStatus, runBootstrap, wakeDemo } from "@/lib/daytona"
 import { attachDemoDomains, domainsConfigured } from "@/lib/domains"
 import { recordLead } from "@/lib/leads"
-import { fetchLogo } from "@/lib/logo"
 import { generateProfile, slugFor } from "@/lib/profile"
 import { findAirline } from "@/lib/reference"
 
@@ -27,7 +26,13 @@ export async function POST(req: Request) {
 
   const existing = await findDemo(slug)
   if (existing) {
-    await wakeDemo(existing)
+    const woke = await wakeDemo(existing)
+    // A sandbox whose bootstrap failed gets a fresh run with the current
+    // sandbox/ runtime (uploaded each run); bootstrap.sh is idempotent.
+    if (!woke) {
+      if ((await readStatus(existing)).state === "error") await runBootstrap(existing)
+      else await ensureRuntime(existing)
+    }
     await recordLead(email, airline.name, slug, statusUrl)
     return Response.json({ slug, reused: true, statusUrl })
   }
@@ -35,9 +40,8 @@ export async function POST(req: Request) {
   // Two clicks for the same airline share one build.
   if (!inFlight.has(slug)) {
     const job = (async () => {
-      const generated = await generateProfile(airline.iata)
-      // Without custom domains, createDemo uses the sandbox's own preview hosts.
-      const hosts = domainsConfigured() ? await attachDemoDomains(slug) : undefined
+      const generated = await generateProfile(airline.name)
+      const hosts = domainsConfigured() ? await attachDemoDomains(slug) : null
       await createDemo(slug, airline.iata, {
         profile: generated.profile,
         brand: {
@@ -45,8 +49,8 @@ export async function POST(req: Request) {
           primaryColorHex: generated.brand.primaryColorHex,
           iata: airline.iata,
         },
-        hosts: hosts ? { dashboard: hosts.dashboard, portal: hosts.portal } : undefined,
-        logo: (await fetchLogo(generated.brand.logoUrls)) ?? undefined,
+        hosts: hosts && { dashboard: hosts.dashboard, portal: hosts.portal },
+        logoUrls: generated.brand.logoUrls,
       })
     })().finally(() => inFlight.delete(slug))
     inFlight.set(slug, job)
@@ -56,7 +60,10 @@ export async function POST(req: Request) {
     await inFlight.get(slug)
   } catch (error) {
     console.error("demo create failed", slug, error)
-    return Response.json({ error: `Could not create the demo: ${(error as Error).message}` }, { status: 500 })
+    // No sandbox capacity/snapshot yet: queue the request and show the
+    // recorded walkthrough instead of an error.
+    await recordLead(email, airline.name, slug, statusUrl)
+    return Response.json({ slug, queued: true, statusUrl: `${statusUrl}?queued=1` })
   }
   await recordLead(email, airline.name, slug, statusUrl)
   return Response.json({ slug, reused: false, statusUrl })

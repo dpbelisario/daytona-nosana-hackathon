@@ -57,6 +57,7 @@ fi
 # Idempotent: only placeholders still present are replaced, so later inject.mjs
 # fixes (logo, names) also reach sandboxes that were seeded earlier.
 status starting "branding"; node "$D/inject.mjs" || fail "branding"
+node "$D/hosts.mjs" || echo "hosts.mjs failed (non-fatal)"
 
 status starting "api"
 pkill -f "$API/api server" 2>/dev/null

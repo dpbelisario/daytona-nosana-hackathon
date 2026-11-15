@@ -17,7 +17,7 @@ import { generateProfile } from "../lib/profile"
 // without rebuilding the snapshot.
 const SANDBOX_DIR = join(dirname(fileURLToPath(import.meta.url)), "..", "..", "sandbox")
 async function uploadRuntime(sandbox: Sandbox) {
-  for (const f of ["bootstrap.sh", "edge.mjs", "inject.mjs"]) {
+  for (const f of ["bootstrap.sh", "edge.mjs", "inject.mjs", "hosts.mjs"]) {
     await sandbox.fs.uploadFile(readFileSync(join(SANDBOX_DIR, f)), `/home/daytona/demo/${f}`)
   }
 }

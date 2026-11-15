@@ -4,7 +4,7 @@
 // docs/factory-contract.md. Any other host (the factory itself) passes through.
 import { NextResponse, type NextRequest } from "next/server"
 
-import { daytonaConfigured, findDemo, previewOrigin, wakeDemo } from "@/lib/daytona"
+import { daytonaConfigured, DASHBOARD_PORT, findDemo, PORTAL_PORT, previewOrigin, wakeDemo } from "@/lib/daytona"
 import { ROOT_DOMAIN } from "@/lib/domains"
 
 export const config = { runtime: "nodejs", matcher: "/:path*" }
@@ -33,7 +33,8 @@ export async function middleware(req: NextRequest) {
     return FACTORY_URL ? NextResponse.redirect(`${FACTORY_URL}/demo/${slug}`) : new NextResponse("Waking up your demo… refresh in a minute.", { status: 503 })
   }
 
-  const target = new URL(req.nextUrl.pathname + req.nextUrl.search, await previewOrigin(sandbox))
+  const port = host.split(":")[0].split(".")[0].endsWith("-booking") ? PORTAL_PORT : DASHBOARD_PORT
+  const target = new URL(req.nextUrl.pathname + req.nextUrl.search, await previewOrigin(sandbox, port))
   const headers = new Headers(req.headers)
   headers.set("X-Demo-Public-Host", host)
   headers.set("X-Daytona-Skip-Preview-Warning", "true")
